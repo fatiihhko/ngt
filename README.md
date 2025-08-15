@@ -78,6 +78,8 @@ The application automatically detects your environment:
 - **State Management**: Zustand
 - **Graph Visualization**: React Force Graph (2D/3D)
 - **Backend**: Supabase (PostgreSQL + Auth + Functions)
+- **AI**: Google Gemini (text-embedding-001 + gemini-1.5-flash)
+- **Hybrid Retrieval**: Semantic + Keyword + Proximity scoring
 - **UI Components**: Custom components with shadcn/ui
 
 ## File Structure
@@ -109,6 +111,26 @@ src/
 npm install
 npm run dev
 ```
+
+### Environment Setup
+```bash
+cp env.example .env
+# Edit .env and add your Gemini API key
+```
+
+### Embedding Scripts
+
+The project includes several scripts for managing embeddings:
+
+- `npm run embed:test` - Test embedding generation and similarity calculations
+- `npm run embed:generate` - Generate test embeddings for development
+- `npm run embed:people` - Generate and upsert embeddings for all contacts in Supabase
+- `npm run debug:db` - Check database structure and content
+
+**Note**: The `embed:people` script requires:
+1. A valid Gemini API key in your `.env` file
+2. Contacts to exist in the database (add some contacts through the app first)
+3. The `people_embeddings` table to be created (run the migration first)
 
 ### Key Features Implementation
 - **Avatar System**: Uses Radix UI Avatar with custom fallback logic

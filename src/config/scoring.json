@@ -1,0 +1,26 @@
+{
+  "weights": {
+    "semantic": 0.45,
+    "keyword": 0.20,
+    "proximity": 0.20,
+    "domain": 0.10,
+    "budgetPenalty": -0.05
+  },
+  "thresholds": {
+    "minSemanticScore": 0.3,
+    "minKeywordScore": 0.1,
+    "minProximityScore": 0.2
+  },
+  "penalties": {
+    "budgetMismatch": 0.2,
+    "locationMismatch": 0.15,
+    "availabilityMismatch": 0.1,
+    "languageMismatch": 0.1
+  },
+  "boosts": {
+    "exactRoleMatch": 0.3,
+    "exactSkillMatch": 0.2,
+    "highRelationshipDegree": 0.15,
+    "domainExpertise": 0.1
+  }
+}

@@ -2,92 +2,124 @@ import { useState } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Bot, Users, Target, MessageCircle, Sparkles, Send } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Bot, Users, Target, MessageCircle, Sparkles, Send, Zap, DollarSign, Crown, MapPin, Scale, Clock, AlertTriangle, CheckCircle } from "lucide-react";
 import { useContacts } from "./ContactsContext";
 import type { Contact } from "./types";
+import { 
+  generateTeamRecommendations,
+  type TeamRequirement,
+  type TeamRecommendation,
+  type TeamStrategy
+} from "@/utils/ragSystem";
+import { createGeminiService } from "@/services/GeminiService";
+import { createHybridRetrievalService } from "@/services/HybridRetrievalService";
+import type { RetrievalScore } from "@/types/hybridRetrieval";
 
 export const AIAssistant = () => {
   const { contacts } = useContacts();
   const [userMessage, setUserMessage] = useState("");
   const [chatState, setChatState] = useState<"waiting" | "asking" | "thinking" | "results">("waiting");
-  const [teamRequirements, setTeamRequirements] = useState<{
-    description: string;
-    teamSize: number;
-    skills: string[];
-  } | null>(null);
-  const [suggestedTeam, setSuggestedTeam] = useState<Contact[]>([]);
+  const [teamRequirements, setTeamRequirements] = useState<TeamRequirement | null>(null);
+  const [teamRecommendations, setTeamRecommendations] = useState<TeamRecommendation[]>([]);
+  const [selectedStrategy, setSelectedStrategy] = useState<TeamStrategy>("balanced");
+  const [aiReasoning, setAiReasoning] = useState<string>("");
+  const [hybridResults, setHybridResults] = useState<RetrievalScore[]>([]);
+  
+  const aiService = createGeminiService();
+  const hybridService = createHybridRetrievalService();
 
   const handleStartChat = () => {
     setChatState("asking");
   };
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (!userMessage.trim()) return;
     
     setChatState("thinking");
     
-    // Simulate AI processing
-    setTimeout(() => {
-      // Extract team requirements from user message
-      const message = userMessage.toLowerCase().trim();
+    try {
+      // Use AI service to analyze project
+      const aiAnalysis = await aiService.analyzeProject(userMessage, contacts);
+      console.log('AI Analysis:', aiAnalysis);
+      console.log('Extracted Roles:', aiAnalysis.requirements.extractedRoles);
+      console.log('Extracted Skills:', aiAnalysis.requirements.extractedSkills);
+      console.log('Contacts count:', contacts.length);
+      console.log('All contacts:', contacts.map(c => ({
+        name: `${c.first_name} ${c.last_name}`,
+        profession: c.profession,
+        services: c.services,
+        tags: c.tags
+      })));
       
-      // Extract team size
-      const teamSizeMatch = message.match(/(\d+)\s*(kişi|kişilik|üye)/);
-      const teamSize = teamSizeMatch ? parseInt(teamSizeMatch[1]) : 3;
+      setTeamRequirements(aiAnalysis.requirements);
+      setAiReasoning(aiAnalysis.reasoning);
       
-      // Extract all meaningful keywords (3+ chars, not common words)
-      const commonWords = ['için', 'bir', 'olan', 'var', 'ile', 'den', 'dan', 'lar', 'ler', 'nin', 'nın', 'nün', 'nun', 'kişi', 'kişilik', 'üye', 'ekip', 'team', 'proje', 'project'];
-      const words = message
-        .replace(/[^\w\s]/g, ' ')
-        .split(/\s+/)
-        .filter(word => word.length >= 3 && !commonWords.includes(word))
-        .filter(word => !word.match(/^\d+$/)); // Remove pure numbers
+      // Use hybrid retrieval system
+      const hybridResult = await hybridService.search(
+        userMessage,
+        aiAnalysis.requirements,
+        contacts
+      );
+      console.log('Hybrid Result:', hybridResult);
       
-      setTeamRequirements({
-        description: userMessage,
-        teamSize,
-        skills: words
-      });
-
-      // Find contacts that match the keywords
-      const scoredContacts = contacts.map(contact => {
-        const contactData = [
-          contact.first_name || "",
-          contact.last_name || "",
-          contact.profession || "",
-          ...(contact.services || []),
-          ...(contact.tags || []),
-          contact.description || ""
-        ].join(" ").toLowerCase();
-        
-        // Count keyword matches
-        let matchScore = 0;
-        words.forEach(keyword => {
-          if (contactData.includes(keyword)) {
-            matchScore += 1;
-          }
+      setHybridResults(hybridResult.recommendations);
+      
+      // Convert hybrid results to team recommendations format
+      const scoredCandidates = hybridResult.recommendations.map(result => ({
+        contact: contacts.find(c => c.id === result.personId)!,
+        roleMatch: result.evidence.matchedRoles.length,
+        skillMatch: result.evidence.matchedSkills.length,
+        relationshipScore: result.evidence.relationshipDegree,
+        availabilityScore: result.evidence.availabilityScore * 10,
+        locationScore: result.evidence.locationScore * 10,
+        totalScore: result.totalScore,
+        matchedRoles: result.evidence.matchedRoles,
+        matchedSkills: result.evidence.matchedSkills
+      }));
+      console.log('Scored Candidates:', scoredCandidates);
+      console.log('Scored Candidates length:', scoredCandidates.length);
+      if (scoredCandidates.length > 0) {
+        console.log('First candidate:', scoredCandidates[0]);
+        console.log('First candidate scores:', {
+          availabilityScore: scoredCandidates[0].availabilityScore,
+          relationshipScore: scoredCandidates[0].relationshipScore,
+          locationScore: scoredCandidates[0].locationScore,
+          totalScore: scoredCandidates[0].totalScore,
+          roleMatch: scoredCandidates[0].roleMatch,
+          skillMatch: scoredCandidates[0].skillMatch
         });
-        
-        return { contact, matchScore };
-      });
-
-      // Filter contacts with at least one match and sort by match score
-      const finalTeam = scoredContacts
-        .filter(item => item.matchScore > 0)
-        .sort((a, b) => b.matchScore - a.matchScore)
-        .slice(0, teamSize)
-        .map(item => item.contact);
-
-      setSuggestedTeam(finalTeam);
+        console.log('First candidate contact:', {
+          name: `${scoredCandidates[0].contact.first_name} ${scoredCandidates[0].contact.last_name}`,
+          profession: scoredCandidates[0].contact.profession,
+          services: scoredCandidates[0].contact.services,
+          tags: scoredCandidates[0].contact.tags
+        });
+      }
+      
+      // Generate team recommendations
+      const recommendations = generateTeamRecommendations(scoredCandidates, aiAnalysis.requirements);
+      console.log('Team Recommendations:', recommendations);
+      console.log('Team Recommendations length:', recommendations.length);
+      if (recommendations.length > 0) {
+        console.log('First recommendation:', recommendations[0]);
+        console.log('First recommendation members:', recommendations[0].members);
+      }
+      setTeamRecommendations(recommendations);
+      
       setChatState("results");
-    }, 2000);
+    } catch (error) {
+      console.error('AI Analysis Error:', error);
+      setChatState("asking");
+    }
   };
 
   const resetChat = () => {
     setUserMessage("");
     setChatState("waiting");
     setTeamRequirements(null);
-    setSuggestedTeam([]);
+    setTeamRecommendations([]);
   };
 
   return (
@@ -126,12 +158,12 @@ export const AIAssistant = () => {
                 <div>
                   <div className="font-medium text-primary mb-2">Mehmet</div>
                   <div>
-                    Süper! Şimdi bana şunları anlat: <br/><br/>
-                    🎯 <strong>Nasıl bir ekibe ihtiyacın var?</strong> (Hangi proje için, ne yapacaksınız?)<br/>
-                    👥 <strong>Kaç kişiden oluşan bir ekip istiyorsun?</strong><br/>
-                    ⚡ <strong>Ekipte nasıl becerilere sahip kişiler olsun?</strong> (yazılım, tasarım, pazarlama vs.)<br/><br/>
+                    Süper! Şimdi bana projeni anlat: <br/><br/>
+                    🎯 <strong>Ne tür bir proje yapmak istiyorsun?</strong> (Web sitesi, mobil uygulama, pazarlama kampanyası vs.)<br/>
+                    👥 <strong>Kaç kişilik bir ekip istiyorsun?</strong> (Örn: 3 kişilik ekip)<br/>
+                    💡 <strong>Projenin detaylarını paylaş</strong> (Ne yapacaksınız, hangi özellikler olacak?)<br/><br/>
                     
-                    Ne kadar detay verirsen o kadar iyi bir ekip kurabilirim! 😊
+                    Ben otomatik olarak gerekli rolleri ve becerileri çıkaracağım! 😊
                   </div>
                 </div>
               </div>
@@ -141,7 +173,7 @@ export const AIAssistant = () => {
               <Textarea
                 value={userMessage}
                 onChange={(e) => setUserMessage(e.target.value)}
-                placeholder="Örnek: Mobil uygulama geliştirmek için 4 kişilik bir ekibe ihtiyacım var. Yazılım geliştirici, UI/UX tasarımcı, pazarlama uzmanı ve proje yöneticisi olsun..."
+                placeholder="Örnek: 3 kişilik ekip istiyorum. E-ticaret web sitesi yapacağız. Online satış, ödeme sistemi ve müşteri yönetimi olacak. Hızlı başlamak istiyoruz..."
                 className="min-h-24"
               />
               <div className="flex gap-2">
@@ -163,111 +195,210 @@ export const AIAssistant = () => {
               <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full"></div>
               <Bot className="h-6 w-6 text-primary" />
             </div>
-            <div className="text-lg">Mehmet düşünüyor...</div>
-            <div className="text-muted-foreground">
-              Ağında bulunan {contacts.length} kişi arasından en uygun ekibi seçiyorum 🤔
+            <div className="text-lg">Gemini AI projenizi analiz ediyor...</div>
+            <div className="text-muted-foreground space-y-2">
+              <div>🔍 Proje gereksinimlerini çıkarıyorum</div>
+              <div>👥 Gerekli rolleri belirliyorum</div>
+              <div>🧠 Gemini embedding'ler oluşturuyorum</div>
+              <div>🎯 Hybrid retrieval ile en uygun ekibi seçiyorum</div>
+              <div>📊 5 farklı strateji önerisi hazırlıyorum</div>
             </div>
           </div>
         )}
 
-        {chatState === "results" && teamRequirements && (
+        {chatState === "results" && teamRequirements && teamRecommendations.length > 0 && (
           <div className="space-y-6">
+            {/* Analysis Summary */}
             <div className="bg-primary/10 p-4 rounded-lg">
               <div className="flex items-start gap-3">
                 <Bot className="h-6 w-6 text-primary mt-1" />
                 <div>
                   <div className="font-medium text-primary mb-2">Mehmet</div>
-                  <div>
-                    Harika! İstediğin ekibi analiz ettim. İşte sana özel olarak seçtiğim <strong>{teamRequirements.teamSize} kişilik ekip</strong>: 🎉
-                    <br/><br/>
-                    <strong>Proje:</strong> {teamRequirements.description}
-                    {teamRequirements.skills.length > 0 && (
-                      <>
-                        <br/><strong>Aranan beceriler:</strong> {teamRequirements.skills.join(", ")}
-                      </>
-                    )}
-                  </div>
+                                      <div>
+                      Harika! Projeni analiz ettim ve <strong>{teamRequirements.teamSize} kişilik ekip</strong> için 5 farklı strateji önerisi hazırladım! 🎉
+                      <br/><br/>
+                      <strong>Proje:</strong> {teamRequirements.description}
+                      <br/><strong>Domain:</strong> {teamRequirements.domain}
+                      <br/><strong>Çıkarılan Roller:</strong> {teamRequirements.extractedRoles.join(", ")}
+                      {teamRequirements.extractedSkills.length > 0 && (
+                        <>
+                          <br/><strong>Çıkarılan Beceriler:</strong> {teamRequirements.extractedSkills.join(", ")}
+                        </>
+                      )}
+                      <br/><strong>Öncelik:</strong> {teamRequirements.urgency === "high" ? "Yüksek" : teamRequirements.urgency === "medium" ? "Orta" : "Düşük"}
+                      <br/><strong>Bütçe:</strong> {teamRequirements.budget === "high" ? "Yüksek" : teamRequirements.budget === "medium" ? "Orta" : "Düşük"}
+                      <br/><strong>Lokasyon:</strong> {teamRequirements.location === "local" ? "Yerel" : teamRequirements.location === "remote" ? "Uzaktan" : "Hibrit"}
+                      {aiReasoning && (
+                        <>
+                          <br/><br/><strong>AI Analizi:</strong> {aiReasoning}
+                        </>
+                      )}
+                      {hybridResults.length > 0 && (
+                        <>
+                          <br/><br/><strong>Hybrid Retrieval:</strong> {hybridResults.length} kişi bulundu 
+                          (Semantic: {hybridResults[0]?.subScores.semantic.toFixed(2)}, 
+                          Keyword: {hybridResults[0]?.subScores.keyword.toFixed(2)}, 
+                          Proximity: {hybridResults[0]?.subScores.proximity.toFixed(2)})
+                        </>
+                      )}
+                    </div>
                 </div>
               </div>
             </div>
 
-            {suggestedTeam.length > 0 ? (
-              <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <Users className="h-5 w-5 text-primary" />
-                  <h3 className="font-semibold">Önerilen Ekip Üyeleri</h3>
-                </div>
-                
-                <div className="grid gap-4 sm:grid-cols-2">
-                  {suggestedTeam.map((contact, index) => (
-                    <Card key={contact.id} className="p-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1">
-                          <div className="font-bold text-lg">
-                            {contact.first_name} {contact.last_name}
-                          </div>
-                          {contact.profession && (
-                            <div className="text-sm text-muted-foreground mt-1">
-                              {contact.profession}
-                            </div>
-                          )}
-                          {contact.city && (
-                            <div className="text-xs text-muted-foreground mt-1">
-                              📍 {contact.city}
-                            </div>
-                          )}
-                          {contact.services?.length && (
-                            <div className="flex flex-wrap gap-1 mt-2">
-                              {contact.services.slice(0, 3).map((service, i) => (
-                                <span key={i} className="inline-flex items-center rounded-full bg-secondary px-2 py-0.5 text-xs">
-                                  {service}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Sparkles className="h-4 w-4 text-primary" />
-                          <span className="text-sm font-medium">
-                            {contact.relationship_degree}/10
-                          </span>
-                        </div>
-                      </div>
-                    </Card>
-                  ))}
-                </div>
+            {/* Strategy Tabs */}
+            <Tabs value={selectedStrategy} onValueChange={(value) => setSelectedStrategy(value as TeamStrategy)}>
+              <TabsList className="grid w-full grid-cols-4">
+                <TabsTrigger value="fast_start" className="flex items-center gap-1">
+                  <Zap className="h-3 w-3" />
+                  Hızlı Başlangıç
+                </TabsTrigger>
+                <TabsTrigger value="senior_leadership" className="flex items-center gap-1">
+                  <Crown className="h-3 w-3" />
+                  Senior
+                </TabsTrigger>
+                <TabsTrigger value="local_alignment" className="flex items-center gap-1">
+                  <MapPin className="h-3 w-3" />
+                  Yerel
+                </TabsTrigger>
+                <TabsTrigger value="balanced" className="flex items-center gap-1">
+                  <Scale className="h-3 w-3" />
+                  Dengeli
+                </TabsTrigger>
+              </TabsList>
 
-                <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 p-4 rounded-lg">
-                  <div className="flex items-start gap-3">
-                    <Target className="h-5 w-5 text-green-600 mt-0.5" />
-                    <div>
-                      <div className="font-medium text-green-800 dark:text-green-200 mb-1">
-                        Mehmet'in Tavsiyesi
-                      </div>
-                      <div className="text-sm text-green-700 dark:text-green-300">
-                        Bu ekip üyeleri senin ağındaki en uygun kişiler! Ortalama bağlantı puanları yüksek ve istediklerin becerilere sahipler. 
-                        Hemen onlarla iletişime geç ve projen için birlikte çalışmaya başlayın! 🚀
+              {teamRecommendations.map((recommendation) => (
+                <TabsContent key={recommendation.strategy} value={recommendation.strategy} className="space-y-4">
+                  {/* Strategy Info */}
+                  <div className="bg-secondary/20 p-4 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      {recommendation.strategy === "fast_start" && <Zap className="h-5 w-5 text-yellow-600 mt-0.5" />}
+                      {recommendation.strategy === "budget_friendly" && <DollarSign className="h-5 w-5 text-green-600 mt-0.5" />}
+                      {recommendation.strategy === "senior_leadership" && <Crown className="h-5 w-5 text-purple-600 mt-0.5" />}
+                      {recommendation.strategy === "local_alignment" && <MapPin className="h-5 w-5 text-blue-600 mt-0.5" />}
+                      {recommendation.strategy === "balanced" && <Scale className="h-5 w-5 text-indigo-600 mt-0.5" />}
+                      <div>
+                        <div className="font-medium mb-2">{recommendation.reasoning}</div>
+                                                 <div className="flex gap-4 text-sm">
+                           <div className="flex items-center gap-1">
+                             <DollarSign className="h-3 w-3" />
+                             <span>Tahmini Maliyet: {recommendation.estimatedCost}</span>
+                           </div>
+                           <div className="flex items-center gap-1">
+                             <Clock className="h-3 w-3" />
+                             <span>Süre: {recommendation.timeline}</span>
+                           </div>
+                           <div className="flex items-center gap-1">
+                             {recommendation.riskLevel === "low" && <CheckCircle className="h-3 w-3 text-green-600" />}
+                             {recommendation.riskLevel === "medium" && <AlertTriangle className="h-3 w-3 text-yellow-600" />}
+                             {recommendation.riskLevel === "high" && <AlertTriangle className="h-3 w-3 text-red-600" />}
+                             <span>Risk: {recommendation.riskLevel === "low" ? "Düşük" : recommendation.riskLevel === "medium" ? "Orta" : "Yüksek"}</span>
+                           </div>
+                         </div>
+                         
+                         {/* Team Composition Metrics */}
+                         <div className="mt-3 p-3 bg-background/50 rounded-lg">
+                           <div className="text-xs font-medium text-muted-foreground mb-2">Ekip Analizi</div>
+                           <div className="grid grid-cols-2 gap-3 text-xs">
+                             <div>
+                               <span className="text-muted-foreground">Ortalama İlişki:</span>
+                               <span className="ml-1 font-medium">{recommendation.teamComposition.averageRelationshipScore}/10</span>
+                             </div>
+                             <div>
+                               <span className="text-muted-foreground">Ortalama Müsaitlik:</span>
+                               <span className="ml-1 font-medium">{recommendation.teamComposition.averageAvailabilityScore}/10</span>
+                             </div>
+                             <div>
+                               <span className="text-muted-foreground">Çeşitlilik:</span>
+                               <span className="ml-1 font-medium">{recommendation.teamComposition.diversityScore}/10</span>
+                             </div>
+                             <div>
+                               <span className="text-muted-foreground">Kapsama:</span>
+                               <span className="ml-1 font-medium">{recommendation.teamComposition.coverageScore}/10</span>
+                             </div>
+                           </div>
+                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              </div>
-            ) : (
-              <div className="bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 p-4 rounded-lg">
-                <div className="flex items-start gap-3">
-                  <Bot className="h-5 w-5 text-orange-600 mt-0.5" />
-                  <div>
-                    <div className="font-medium text-orange-800 dark:text-orange-200 mb-1">
-                      Mehmet
+
+                  {/* Team Members */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <Users className="h-5 w-5 text-primary" />
+                      <h3 className="font-semibold">Ekip Üyeleri ({recommendation.members.length})</h3>
                     </div>
-                    <div className="text-sm text-orange-700 dark:text-orange-300">
-                      Tamam, benim tanıdıklarımdan sadece {suggestedTeam.length} kişi çıktı istediğin kriterlere uygun. 
-                      {suggestedTeam.length > 0 ? ' Bu kadarı ile başlayabilirsin!' : ' Daha fazla kişi eklemen gerekebilir.'} 😊
+                    
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      {recommendation.members.map((candidate, index) => (
+                        <Card key={candidate.contact.id} className="p-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1">
+                              <div className="font-bold text-lg">
+                                {candidate.contact.first_name} {candidate.contact.last_name}
+                              </div>
+                              {candidate.contact.profession && (
+                                <div className="text-sm text-muted-foreground mt-1">
+                                  {candidate.contact.profession}
+                                </div>
+                              )}
+                              {candidate.contact.city && (
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  📍 {candidate.contact.city}
+                                </div>
+                              )}
+                              
+                              {/* Matched Roles & Skills */}
+                              {candidate.matchedRoles.length > 0 && (
+                                <div className="mt-2">
+                                  <div className="text-xs font-medium text-muted-foreground mb-1">Uyumlu Roller:</div>
+                                  <div className="flex flex-wrap gap-1">
+                                    {candidate.matchedRoles.slice(0, 2).map((role, i) => (
+                                      <Badge key={i} variant="secondary" className="text-xs">
+                                        {role}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {candidate.matchedSkills.length > 0 && (
+                                <div className="mt-2">
+                                  <div className="text-xs font-medium text-muted-foreground mb-1">Uyumlu Beceriler:</div>
+                                  <div className="flex flex-wrap gap-1">
+                                    {candidate.matchedSkills.slice(0, 3).map((skill, i) => (
+                                      <Badge key={i} variant="outline" className="text-xs">
+                                        {skill}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                            
+                            {/* Scores */}
+                            <div className="flex flex-col items-end gap-1">
+                              <div className="flex items-center gap-1">
+                                <Sparkles className="h-4 w-4 text-primary" />
+                                <span className="text-sm font-medium">
+                                  {candidate.totalScore.toFixed(1)}
+                                </span>
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                İlişki: {candidate.relationshipScore}/10
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                Müsaitlik: {candidate.availabilityScore}/10
+                              </div>
+                            </div>
+                          </div>
+                        </Card>
+                      ))}
                     </div>
                   </div>
-                </div>
-              </div>
-            )}
+                </TabsContent>
+              ))}
+            </Tabs>
 
             <div className="flex gap-2 pt-4">
               <Button onClick={resetChat} variant="outline">
