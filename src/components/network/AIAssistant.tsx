@@ -182,15 +182,12 @@ export const AIAssistant = () => {
                       Harika! Projeni analiz ettim ve <strong>{teamRequirements.teamSize} kişilik ekip</strong> için 5 farklı strateji önerisi hazırladım! 🎉
                       <br/><br/>
                       <strong>Proje:</strong> {teamRequirements.description}
-                      <br/><strong>Domain:</strong> {teamRequirements.domain}
                       <br/><strong>Çıkarılan Roller:</strong> {teamRequirements.extractedRoles.join(", ")}
                       {teamRequirements.extractedSkills.length > 0 && (
                         <>
                           <br/><strong>Çıkarılan Beceriler:</strong> {teamRequirements.extractedSkills.join(", ")}
                         </>
                       )}
-                      <br/><strong>Öncelik:</strong> {teamRequirements.urgency === "high" ? "Yüksek" : teamRequirements.urgency === "medium" ? "Orta" : "Düşük"}
-                      <br/><strong>Bütçe:</strong> {teamRequirements.budget === "high" ? "Yüksek" : teamRequirements.budget === "medium" ? "Orta" : "Düşük"}
                       <br/><strong>Lokasyon:</strong> {teamRequirements.location === "local" ? "Yerel" : teamRequirements.location === "remote" ? "Uzaktan" : "Hibrit"}
                       {aiReasoning && (
                         <>
