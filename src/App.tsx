@@ -10,8 +10,14 @@ import Network from "./pages/Network";
 import InviteLanding from "./pages/InviteLanding";
 import InviteLinkLanding from "./pages/InviteLinkLanding";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
+import { debugEnvironment } from "@/utils/env";
 
 const queryClient = new QueryClient();
+
+// Debug environment variables in production
+if (import.meta.env.PROD) {
+  debugEnvironment();
+}
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
