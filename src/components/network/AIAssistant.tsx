@@ -42,16 +42,6 @@ export const AIAssistant = () => {
     try {
       // Use AI service to analyze project
       const aiAnalysis = await aiService.analyzeProject(userMessage, contacts);
-      console.log('AI Analysis:', aiAnalysis);
-      console.log('Extracted Roles:', aiAnalysis.requirements.extractedRoles);
-      console.log('Extracted Skills:', aiAnalysis.requirements.extractedSkills);
-      console.log('Contacts count:', contacts.length);
-      console.log('All contacts:', contacts.map(c => ({
-        name: `${c.first_name} ${c.last_name}`,
-        profession: c.profession,
-        services: c.services,
-        tags: c.tags
-      })));
       
       setTeamRequirements(aiAnalysis.requirements);
       setAiReasoning(aiAnalysis.reasoning);
@@ -62,7 +52,6 @@ export const AIAssistant = () => {
         aiAnalysis.requirements,
         contacts
       );
-      console.log('Hybrid Result:', hybridResult);
       
       setHybridResults(hybridResult.recommendations);
       
@@ -78,34 +67,9 @@ export const AIAssistant = () => {
         matchedRoles: result.evidence.matchedRoles,
         matchedSkills: result.evidence.matchedSkills
       }));
-      console.log('Scored Candidates:', scoredCandidates);
-      console.log('Scored Candidates length:', scoredCandidates.length);
-      if (scoredCandidates.length > 0) {
-        console.log('First candidate:', scoredCandidates[0]);
-        console.log('First candidate scores:', {
-          availabilityScore: scoredCandidates[0].availabilityScore,
-          relationshipScore: scoredCandidates[0].relationshipScore,
-          locationScore: scoredCandidates[0].locationScore,
-          totalScore: scoredCandidates[0].totalScore,
-          roleMatch: scoredCandidates[0].roleMatch,
-          skillMatch: scoredCandidates[0].skillMatch
-        });
-        console.log('First candidate contact:', {
-          name: `${scoredCandidates[0].contact.first_name} ${scoredCandidates[0].contact.last_name}`,
-          profession: scoredCandidates[0].contact.profession,
-          services: scoredCandidates[0].contact.services,
-          tags: scoredCandidates[0].contact.tags
-        });
-      }
       
       // Generate team recommendations
       const recommendations = generateTeamRecommendations(scoredCandidates, aiAnalysis.requirements);
-      console.log('Team Recommendations:', recommendations);
-      console.log('Team Recommendations length:', recommendations.length);
-      if (recommendations.length > 0) {
-        console.log('First recommendation:', recommendations[0]);
-        console.log('First recommendation members:', recommendations[0].members);
-      }
       setTeamRecommendations(recommendations);
       
       setChatState("results");

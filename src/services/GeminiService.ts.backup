@@ -73,7 +73,7 @@ export class GeminiServiceImpl implements GeminiService {
         }
         `;
         
-        // Add delay between retries
+                // Add delay between retries
         if (attempt > 0) {
           await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
         }
@@ -152,7 +152,6 @@ export class GeminiServiceImpl implements GeminiService {
     // This should never be reached, but just in case
     const mockService = new MockGeminiService();
     return mockService.analyzeProject(description, contacts);
-  }
   
   async generateTeamRecommendations(
     requirements: TeamRequirement,

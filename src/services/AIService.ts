@@ -1,5 +1,6 @@
 import type { Contact } from "@/components/network/types";
 import type { TeamRequirement, TeamRecommendation } from "@/utils/ragSystem";
+import { getApiKey, logApiKeyWarning } from "@/utils/env";
 
 // AI Service Interface
 export interface AIService {
@@ -336,11 +337,12 @@ export class OpenAIService implements AIService {
 
 // Service factory
 export function createAIService(): AIService {
-  const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
+  const apiKey = getApiKey('VITE_GEMINI_API_KEY');
   
   if (apiKey) {
     return new OpenAIService(apiKey);
   } else {
+    logApiKeyWarning('Gemini', 'VITE_GEMINI_API_KEY');
     return new MockAIService();
   }
 }
