@@ -16,7 +16,9 @@ const queryClient = new QueryClient();
 
 // Debug environment variables in production
 if (import.meta.env.PROD) {
+  console.log('🔍 PRODUCTION ENVIRONMENT DEBUG START');
   debugEnvironment();
+  console.log('🔍 PRODUCTION ENVIRONMENT DEBUG END');
 }
 
 const App = () => (
