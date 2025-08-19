@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ContactForm } from "@/components/network/ContactForm";
+import { AddPersonModal } from "@/components/network/AddPersonModal";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { UserPlus, Mail, User, CheckCircle, Clock, AlertCircle, Sparkles, Crown, Users } from "lucide-react";
+import { useNetworkStore } from "@/store/network";
 
 interface InviteLookupResponse {
   valid: boolean;
@@ -40,12 +41,13 @@ const setSEO = (title: string, description: string, canonical?: string) => {
 
 const InviteLanding = () => {
   const { token } = useParams();
-const [lookup, setLookup] = useState<InviteLookupResponse | null>(null);
+  const [lookup, setLookup] = useState<InviteLookupResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [inviter, setInviter] = useState({ first_name: "", last_name: "", email: "" });
   const [stepOneDone, setStepOneDone] = useState(false);
   const [resolvedParentId, setResolvedParentId] = useState<string | undefined>(undefined);
   const [submitting, setSubmitting] = useState(false);
+
 
   const baseUrl = useMemo(() => window.location.origin, []);
 
@@ -364,11 +366,19 @@ const load = async () => {
                 </div>
               </div>
 
-              <div className="max-w-3xl mx-auto">
-                <ContactForm
+              <div className="max-w-3xl mx-auto relative z-20">
+                                <AddPersonModal
+                  variant="default"
                   parentContactId={resolvedParentId}
                   inviteToken={token}
-                  onSuccess={() => {
+                  isInviteLink={false}
+                  onSuccess={async (newPerson) => {
+                    console.log('InviteLanding: onSuccess called with newPerson:', newPerson);
+                    // Refresh the network data to get the complete person information
+                    const { loadNetwork } = useNetworkStore.getState();
+                    console.log('InviteLanding: Calling loadNetwork()');
+                    await loadNetwork();
+                    console.log('InviteLanding: loadNetwork() completed');
                     toast({ 
                       title: "Başarılı!", 
                       description: "Ağa başarıyla katıldınız. Hoş geldiniz!" 

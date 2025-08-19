@@ -35,7 +35,7 @@ export const InviteLinkManager = () => {
   const [showSendEmailDialog, setShowSendEmailDialog] = useState(false);
   const [showSendInviteDialog, setShowSendInviteDialog] = useState(false);
   const [newLinkName, setNewLinkName] = useState("");
-  const [newLinkLimit, setNewLinkLimit] = useState(4);
+  const [newLinkLimit, setNewLinkLimit] = useState(0); // 0 = unlimited
   const [emailToSend, setEmailToSend] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteMessage, setInviteMessage] = useState("");
@@ -108,7 +108,7 @@ export const InviteLinkManager = () => {
       toast({ title: "Başarılı", description: "Davet bağlantısı oluşturuldu" });
       setShowCreateDialog(false);
       setNewLinkName("");
-      setNewLinkLimit(4);
+      setNewLinkLimit(0);
       fetchInviteLinks();
     } catch (error: any) {
       toast({ title: "Hata", description: error.message, variant: "destructive" });
@@ -546,10 +546,14 @@ export const InviteLinkManager = () => {
                   <Input
                     id="limit"
                     type="number"
-                    min={1}
+                    min={0}
                     value={newLinkLimit}
-                    onChange={(e) => setNewLinkLimit(Math.max(1, parseInt(e.target.value) || 1))}
+                    onChange={(e) => setNewLinkLimit(Math.max(0, parseInt(e.target.value) || 0))}
+                    placeholder="0 = Limitsiz"
                   />
+                  {newLinkLimit === 0 && (
+                    <p className="text-sm text-muted-foreground">0 = Limitsiz kullanım</p>
+                  )}
                 </div>
                 <div className="flex justify-end gap-2">
                   <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
@@ -581,7 +585,7 @@ export const InviteLinkManager = () => {
                     {link.status === "active" ? "Aktif" : "Pasif"}
                   </Badge>
                   <Badge variant="outline">
-                    {link.used_count}/{link.limit_count}
+                    {link.used_count}/{link.limit_count === 0 ? '∞' : link.limit_count}
                   </Badge>
                 </div>
               </div>
@@ -608,7 +612,7 @@ export const InviteLinkManager = () => {
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-muted-foreground">
-                  {link.limit_count - link.used_count} slot kaldı
+                  {link.limit_count === 0 ? 'Limitsiz' : `${link.limit_count - link.used_count} slot kaldı`}
                 </span>
                 <Button
                   variant="outline"

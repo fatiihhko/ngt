@@ -38,6 +38,7 @@ export interface PersonEmbedding {
   embedding: number[];
   text: string;
   skills: string[];
+  services: string[];
   expertise: string[];
   tags: string[];
   languages: string[];
@@ -72,6 +73,8 @@ export interface RetrievalScore {
   evidence: {
     matchedRoles: string[];
     matchedSkills: string[];
+    matchedExpertise: string[];
+    matchedServices: string[];
     relationshipDegree: number;
     availabilityScore: number;
     locationScore: number;

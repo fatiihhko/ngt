@@ -16,6 +16,7 @@ import {
 import { createGeminiService } from "@/services/GeminiService";
 import { createHybridRetrievalService } from "@/services/HybridRetrievalService";
 import type { RetrievalScore } from "@/types/hybridRetrieval";
+import { ContactCard } from "./ContactCard";
 
 export const AIAssistant = () => {
   const { contacts } = useContacts();
@@ -26,6 +27,7 @@ export const AIAssistant = () => {
   const [selectedStrategy, setSelectedStrategy] = useState<TeamStrategy>("balanced");
   const [aiReasoning, setAiReasoning] = useState<string>("");
   const [hybridResults, setHybridResults] = useState<RetrievalScore[]>([]);
+  const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   
   const aiService = createGeminiService();
   const hybridService = createHybridRetrievalService();
@@ -60,12 +62,18 @@ export const AIAssistant = () => {
         contact: contacts.find(c => c.id === result.personId)!,
         roleMatch: result.evidence.matchedRoles.length,
         skillMatch: result.evidence.matchedSkills.length,
+        expertiseMatch: result.evidence.matchedExpertise?.length || 0,
+        servicesMatch: result.evidence.matchedServices?.length || 0,
+        sectorsMatch: 0, // This will be calculated by the new RAG system
         relationshipScore: result.evidence.relationshipDegree,
         availabilityScore: result.evidence.availabilityScore * 10,
         locationScore: result.evidence.locationScore * 10,
         totalScore: result.totalScore,
         matchedRoles: result.evidence.matchedRoles,
-        matchedSkills: result.evidence.matchedSkills
+        matchedSkills: result.evidence.matchedSkills,
+        matchedExpertise: result.evidence.matchedExpertise || [],
+        matchedServices: result.evidence.matchedServices || [],
+        matchedSectors: [] // This will be populated by the new RAG system
       }));
       
       // Generate team recommendations
@@ -165,7 +173,7 @@ export const AIAssistant = () => {
               <div>👥 Gerekli rolleri belirliyorum</div>
               <div>🧠 Gemini embedding'ler oluşturuyorum</div>
               <div>🎯 Hybrid retrieval ile en uygun ekibi seçiyorum</div>
-              <div>📊 5 farklı strateji önerisi hazırlıyorum</div>
+              <div>📊 4 farklı strateji önerisi hazırlıyorum</div>
             </div>
           </div>
         )}
@@ -179,7 +187,7 @@ export const AIAssistant = () => {
                 <div>
                   <div className="font-medium text-primary mb-2">Mehmet</div>
                                       <div>
-                      Harika! Projeni analiz ettim ve <strong>{teamRequirements.teamSize} kişilik ekip</strong> için 5 farklı strateji önerisi hazırladım! 🎉
+                      Harika! Projeni analiz ettim ve <strong>{teamRequirements.teamSize} kişilik ekip</strong> için 4 farklı strateji önerisi hazırladım! 🎉
                       <br/><br/>
                       <strong>Proje:</strong> {teamRequirements.description}
                       <br/><strong>Çıkarılan Roller:</strong> {teamRequirements.extractedRoles.join(", ")}
@@ -292,10 +300,14 @@ export const AIAssistant = () => {
                     
                     <div className="grid gap-4 sm:grid-cols-2">
                       {recommendation.members.map((candidate, index) => (
-                        <Card key={candidate.contact.id} className="p-4">
+                        <Card 
+                          key={candidate.contact.id} 
+                          className="p-4 cursor-pointer hover:bg-secondary/20 transition-all duration-200 hover:scale-[1.02] group"
+                          onClick={() => setSelectedContact(candidate.contact)}
+                        >
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex-1">
-                              <div className="font-bold text-lg">
+                              <div className="font-bold text-lg group-hover:text-primary transition-colors">
                                 {candidate.contact.first_name} {candidate.contact.last_name}
                               </div>
                               {candidate.contact.profession && (
@@ -303,9 +315,48 @@ export const AIAssistant = () => {
                                   {candidate.contact.profession}
                                 </div>
                               )}
-                              {candidate.contact.city && (
+                              {candidate.contact.company && (
                                 <div className="text-xs text-muted-foreground mt-1">
-                                  📍 {candidate.contact.city}
+                                  🏢 {candidate.contact.company}
+                                </div>
+                              )}
+                              {(candidate.contact.current_city || candidate.contact.city) && (
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  📍 {candidate.contact.current_city || candidate.contact.city}
+                                </div>
+                              )}
+                              {candidate.contact.age && (
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  👤 {candidate.contact.age} yaşında
+                                </div>
+                              )}
+                              
+                              {/* Education Info */}
+                              {candidate.contact.education_degree && (
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  🎓 {candidate.contact.education_degree}
+                                  {candidate.contact.education_department && ` - ${candidate.contact.education_department}`}
+                                </div>
+                              )}
+                              
+                              {/* Languages */}
+                              {candidate.contact.languages && candidate.contact.languages.length > 0 && (
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  🌍 {candidate.contact.languages.join(", ")}
+                                </div>
+                              )}
+                              
+                              {/* Personal Traits */}
+                              {candidate.contact.personal_traits && candidate.contact.personal_traits.length > 0 && (
+                                <div className="mt-2">
+                                  <div className="text-xs font-medium text-muted-foreground mb-1">Kişisel Özellikler:</div>
+                                  <div className="flex flex-wrap gap-1">
+                                    {candidate.contact.personal_traits.slice(0, 3).map((trait, i) => (
+                                      <Badge key={i} variant="secondary" className="text-xs">
+                                        {trait}
+                                      </Badge>
+                                    ))}
+                                  </div>
                                 </div>
                               )}
                               
@@ -335,6 +386,34 @@ export const AIAssistant = () => {
                                   </div>
                                 </div>
                               )}
+                              
+                              {/* Expertise Matches (Uzmanlık) */}
+                              {candidate.matchedExpertise && candidate.matchedExpertise.length > 0 && (
+                                <div className="mt-2">
+                                  <div className="text-xs font-medium text-muted-foreground mb-1">Uyumlu Uzmanlıklar:</div>
+                                  <div className="flex flex-wrap gap-1">
+                                    {candidate.matchedExpertise.slice(0, 2).map((expertise, i) => (
+                                      <Badge key={i} variant="default" className="text-xs bg-green-600 hover:bg-green-700">
+                                        {expertise}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {/* Services Matches (Hizmetler) */}
+                              {candidate.matchedServices && candidate.matchedServices.length > 0 && (
+                                <div className="mt-2">
+                                  <div className="text-xs font-medium text-muted-foreground mb-1">Uyumlu Hizmetler:</div>
+                                  <div className="flex flex-wrap gap-1">
+                                    {candidate.matchedServices.slice(0, 2).map((service, i) => (
+                                      <Badge key={i} variant="default" className="text-xs bg-blue-600 hover:bg-blue-700">
+                                        {service}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
                             </div>
                             
                             {/* Scores */}
@@ -350,6 +429,9 @@ export const AIAssistant = () => {
                               </div>
                               <div className="text-xs text-muted-foreground">
                                 Müsaitlik: {candidate.availabilityScore}/10
+                              </div>
+                              <div className="text-xs text-primary mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                Detayları görüntüle →
                               </div>
                             </div>
                           </div>
@@ -370,6 +452,17 @@ export const AIAssistant = () => {
           </div>
         )}
       </Card>
+
+      {/* Contact Card Popup */}
+      {selectedContact && (
+        <ContactCard 
+          contact={selectedContact} 
+          onClose={() => setSelectedContact(null)}
+          index={0}
+          degreeLevel={selectedContact.relationship_degree || 5}
+          showOnlyPopup={true}
+        />
+      )}
     </div>
   );
 };

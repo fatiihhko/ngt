@@ -57,9 +57,9 @@ export class HybridRetrievalServiceImpl implements HybridRetrievalService {
         budgetPenalty: -0.05
       },
       thresholds: {
-        minSemanticScore: 0.3,
-        minKeywordScore: 0.1,
-        minProximityScore: 0.2
+        minSemanticScore: 0.01, // Çok düşük - tüm kişiler geçebilsin
+        minKeywordScore: 0.001, // Çok düşük - tüm kişiler geçebilsin
+        minProximityScore: 0.01 // Çok düşük - tüm kişiler geçebilsin
       },
       penalties: {
         budgetMismatch: 0.2,
@@ -96,9 +96,20 @@ export class HybridRetrievalServiceImpl implements HybridRetrievalService {
     // Calculate scores for each person
     const scores: RetrievalScore[] = [];
     
+    console.log('🔍 Debug: Starting search with', contacts.length, 'contacts');
+    console.log('🔍 Debug: Query requirements:', requirements);
+    console.log('🔍 Debug: Query requirements skills:', requirements.skills);
+    console.log('🔍 Debug: Query requirements roles:', requirements.roles);
+    
     for (let i = 0; i < contacts.length; i++) {
       const contact = contacts[i];
       const personEmbedding = personEmbeddings[i];
+      
+      console.log(`🔍 Debug: Processing ${contact.first_name} ${contact.last_name}`);
+      console.log(`🔍 Debug: Contact services:`, contact.services);
+      console.log(`🔍 Debug: Contact expertise:`, contact.expertise);
+      console.log(`🔍 Debug: Person embedding services:`, personEmbedding.services);
+      console.log(`🔍 Debug: Person embedding expertise:`, personEmbedding.expertise);
       
       const semanticScore = await this.calculateSemanticScore(queryEmbedding, personEmbedding);
       const keywordScore = this.calculateKeywordScore(queryEmbedding, personEmbedding);
@@ -106,10 +117,28 @@ export class HybridRetrievalServiceImpl implements HybridRetrievalService {
       const domainScore = this.calculateDomainScore(personEmbedding.domain, queryEmbedding.requirements.domain);
       const budgetPenalty = this.calculateBudgetPenalty(contact, requirements);
       
+      console.log(`🔍 Debug: ${contact.first_name} scores:`, {
+        semantic: semanticScore.toFixed(3),
+        keyword: keywordScore.toFixed(3),
+        proximity: proximityScore.toFixed(3),
+        domain: domainScore.toFixed(3)
+      });
+      
       // Apply thresholds
-      if (semanticScore < finalConfig.thresholds.minSemanticScore) continue;
-      if (keywordScore < finalConfig.thresholds.minKeywordScore) continue;
-      if (proximityScore < finalConfig.thresholds.minProximityScore) continue;
+      if (semanticScore < finalConfig.thresholds.minSemanticScore) {
+        console.log(`❌ ${contact.first_name} failed semantic threshold: ${semanticScore.toFixed(3)} < ${finalConfig.thresholds.minSemanticScore}`);
+        continue;
+      }
+      if (keywordScore < finalConfig.thresholds.minKeywordScore) {
+        console.log(`❌ ${contact.first_name} failed keyword threshold: ${keywordScore.toFixed(3)} < ${finalConfig.thresholds.minKeywordScore}`);
+        continue;
+      }
+      if (proximityScore < finalConfig.thresholds.minProximityScore) {
+        console.log(`❌ ${contact.first_name} failed proximity threshold: ${proximityScore.toFixed(3)} < ${finalConfig.thresholds.minProximityScore}`);
+        continue;
+      }
+      
+      console.log(`✅ ${contact.first_name} passed all thresholds!`);
       
       // Calculate total score
       const totalScore = 
@@ -172,25 +201,170 @@ export class HybridRetrievalServiceImpl implements HybridRetrievalService {
     let score = 0;
     let totalMatches = 0;
     
-    // Role matching
-    const roleMatches = query.requirements.roles.filter(role =>
-      person.roles.some(personRole => 
-        personRole.toLowerCase().includes(role.toLowerCase()) ||
-        role.toLowerCase().includes(personRole.toLowerCase())
-      )
-    );
-    score += roleMatches.length * 0.3;
+    console.log('🔍 Debug: calculateKeywordScore called');
+    console.log('🔍 Debug: Query requirements skills:', query.requirements.skills);
+    console.log('🔍 Debug: Person services:', person.services);
+    console.log('🔍 Debug: Person expertise:', person.expertise);
+    
+    // Enhanced role matching with semantic understanding
+    const roleMatches = [];
+    
+    query.requirements.roles.forEach(role => {
+      const roleLower = role.toLowerCase();
+      let matched = false;
+      
+      person.roles.forEach(personRole => {
+        const personRoleLower = personRole.toLowerCase();
+        
+        // Direct match
+        if (personRoleLower.includes(roleLower) || roleLower.includes(personRoleLower)) {
+          matched = true;
+        }
+        // Semantic software development matching
+        else if (
+          (roleLower.includes("frontend developer") || roleLower.includes("backend developer") || 
+           roleLower.includes("software developer") || roleLower.includes("full stack developer")) &&
+          (personRoleLower.includes("yazılım mühendisi") || personRoleLower.includes("software engineer") ||
+           personRoleLower.includes("yazılım geliştirici") || personRoleLower.includes("developer") ||
+           personRoleLower.includes("mühendis"))
+        ) {
+          matched = true;
+        }
+        // Marketing roles matching
+        else if (
+          roleLower.includes("marketing") &&
+          (personRoleLower.includes("pazarlama") || personRoleLower.includes("marketing"))
+        ) {
+          matched = true;
+        }
+        // Management roles matching
+        else if (
+          roleLower.includes("manager") &&
+          (personRoleLower.includes("müdür") || personRoleLower.includes("manager") || 
+           personRoleLower.includes("yönetici"))
+        ) {
+          matched = true;
+        }
+      });
+      
+      if (matched) {
+        roleMatches.push(role);
+      }
+    });
+    
+    console.log('🔍 Debug: Role matches:', roleMatches);
+    score += roleMatches.length * 0.2; // Reduced from 0.3
     totalMatches += roleMatches.length;
     
-    // Skill matching
-    const skillMatches = query.requirements.skills.filter(skill =>
-      person.skills.some(personSkill => 
-        personSkill.toLowerCase().includes(skill.toLowerCase()) ||
-        skill.toLowerCase().includes(personSkill.toLowerCase())
+    // Expertise matching (HIGHEST weight for "Uzmanlık")
+    const expertiseMatches = query.requirements.skills.filter(skill =>
+      person.expertise.some(expertise => 
+        expertise.toLowerCase().includes(skill.toLowerCase()) ||
+        skill.toLowerCase().includes(expertise.toLowerCase())
       )
     );
-    score += skillMatches.length * 0.2;
-    totalMatches += skillMatches.length;
+    console.log('🔍 Debug: Expertise matches:', expertiseMatches);
+    score += expertiseMatches.length * 0.45; // HIGHEST weight for expertise
+    totalMatches += expertiseMatches.length;
+    
+    // Services matching (VERY HIGH weight for "Hizmetler")
+    console.log('🔍 Debug: Checking services matching...');
+    console.log('🔍 Debug: Available services:', person.services);
+    
+    const serviceMatches = query.requirements.skills.filter(skill => {
+      const skillLower = skill.toLowerCase();
+      console.log(`🔍 Debug: Checking skill "${skill}" against services...`);
+      
+      const match = person.services.some(service => {
+        const serviceLower = service.toLowerCase();
+        
+        // Enhanced matching logic
+        let isMatch = serviceLower.includes(skillLower) || skillLower.includes(serviceLower);
+        
+        // Special case: if skill is a programming language/tech, check if service contains "yazılım"
+        if (!isMatch && (
+          skillLower.includes("javascript") || skillLower.includes("react") || 
+          skillLower.includes("node") || skillLower.includes("python") || 
+          skillLower.includes("sql") || skillLower.includes("java") ||
+          skillLower.includes("developer") || skillLower.includes("programming")
+        )) {
+          isMatch = serviceLower.includes("yazılım") || serviceLower.includes("software") || 
+                   serviceLower.includes("programlama") || serviceLower.includes("kod");
+        }
+        
+        // Special case: if skill is "project management", check for management-related services
+        if (!isMatch && skillLower.includes("project management")) {
+          isMatch = serviceLower.includes("yönetim") || serviceLower.includes("management") ||
+                   serviceLower.includes("ekip") || serviceLower.includes("team");
+        }
+        
+        // Special case: marketing skills
+        if (!isMatch && (
+          skillLower.includes("marketing") || skillLower.includes("pazarlama") ||
+          skillLower.includes("social media") || skillLower.includes("sosyal medya") ||
+          skillLower.includes("advertising") || skillLower.includes("reklam")
+        )) {
+          isMatch = serviceLower.includes("pazarlama") || serviceLower.includes("marketing") ||
+                   serviceLower.includes("reklam") || serviceLower.includes("sosyal medya");
+        }
+        
+        // Special case: design skills
+        if (!isMatch && (
+          skillLower.includes("design") || skillLower.includes("tasarım") ||
+          skillLower.includes("ui") || skillLower.includes("ux") ||
+          skillLower.includes("graphic") || skillLower.includes("grafik")
+        )) {
+          isMatch = serviceLower.includes("tasarım") || serviceLower.includes("design") ||
+                   serviceLower.includes("grafik") || serviceLower.includes("ui") ||
+                   serviceLower.includes("ux");
+        }
+        
+        // Special case: finance/accounting skills
+        if (!isMatch && (
+          skillLower.includes("finance") || skillLower.includes("finans") ||
+          skillLower.includes("accounting") || skillLower.includes("muhasebe") ||
+          skillLower.includes("tax") || skillLower.includes("vergi")
+        )) {
+          isMatch = serviceLower.includes("finans") || serviceLower.includes("finance") ||
+                   serviceLower.includes("muhasebe") || serviceLower.includes("accounting") ||
+                   serviceLower.includes("vergi") || serviceLower.includes("tax");
+        }
+        
+        // Special case: legal skills
+        if (!isMatch && (
+          skillLower.includes("legal") || skillLower.includes("hukuk") ||
+          skillLower.includes("law") || skillLower.includes("avukat") ||
+          skillLower.includes("contract") || skillLower.includes("sözleşme")
+        )) {
+          isMatch = serviceLower.includes("hukuk") || serviceLower.includes("legal") ||
+                   serviceLower.includes("avukat") || serviceLower.includes("law") ||
+                   serviceLower.includes("sözleşme") || serviceLower.includes("contract");
+        }
+        
+        // Special case: AI/ML skills
+        if (!isMatch && (
+          skillLower.includes("ai") || skillLower.includes("yapay zeka") ||
+          skillLower.includes("machine learning") || skillLower.includes("ml") ||
+          skillLower.includes("data science") || skillLower.includes("veri bilimi")
+        )) {
+          isMatch = serviceLower.includes("yapay zeka") || serviceLower.includes("ai") ||
+                   serviceLower.includes("machine learning") || serviceLower.includes("ml") ||
+                   serviceLower.includes("veri bilimi") || serviceLower.includes("data science");
+        }
+        
+        console.log(`🔍 Debug: Service "${service}" vs skill "${skill}" = ${isMatch}`);
+        return isMatch;
+      });
+      
+      if (match) {
+        console.log(`🔍 Debug: Found match for skill "${skill}"`);
+      }
+      return match;
+    });
+    
+    console.log('🔍 Debug: Final service matches:', serviceMatches);
+    score += serviceMatches.length * 0.35; // VERY HIGH weight for services
+    totalMatches += serviceMatches.length;
     
     // Tag matching
     const tagMatches = query.requirements.skills.filter(skill =>
@@ -202,14 +376,14 @@ export class HybridRetrievalServiceImpl implements HybridRetrievalService {
     score += tagMatches.length * 0.1;
     totalMatches += tagMatches.length;
     
-    // Text matching
+    // Text matching (reduced weight)
     const queryText = query.text.toLowerCase();
     const personText = person.text.toLowerCase();
     
     const textMatches = query.requirements.skills.filter(skill =>
       personText.includes(skill.toLowerCase())
     );
-    score += textMatches.length * 0.1;
+    score += textMatches.length * 0.05; // Reduced from 0.1
     totalMatches += textMatches.length;
     
     return totalMatches > 0 ? score / totalMatches : 0;
@@ -260,11 +434,50 @@ export class HybridRetrievalServiceImpl implements HybridRetrievalService {
     personEmbedding: PersonEmbedding,
     queryEmbedding: QueryEmbedding
   ) {
-    const matchedRoles = queryEmbedding.requirements.roles.filter(role =>
-      personEmbedding.roles.some(personRole => 
-        personRole.toLowerCase().includes(role.toLowerCase())
-      )
-    );
+    const matchedRoles = [];
+    
+    queryEmbedding.requirements.roles.forEach(role => {
+      const roleLower = role.toLowerCase();
+      let matched = false;
+      
+      personEmbedding.roles.forEach(personRole => {
+        const personRoleLower = personRole.toLowerCase();
+        
+        // Direct match
+        if (personRoleLower.includes(roleLower) || roleLower.includes(personRoleLower)) {
+          matched = true;
+        }
+        // Semantic software development matching
+        else if (
+          (roleLower.includes("frontend developer") || roleLower.includes("backend developer") || 
+           roleLower.includes("software developer") || roleLower.includes("full stack developer")) &&
+          (personRoleLower.includes("yazılım mühendisi") || personRoleLower.includes("software engineer") ||
+           personRoleLower.includes("yazılım geliştirici") || personRoleLower.includes("developer") ||
+           personRoleLower.includes("mühendis"))
+        ) {
+          matched = true;
+        }
+        // Marketing roles matching
+        else if (
+          roleLower.includes("marketing") &&
+          (personRoleLower.includes("pazarlama") || personRoleLower.includes("marketing"))
+        ) {
+          matched = true;
+        }
+        // Management roles matching
+        else if (
+          roleLower.includes("manager") &&
+          (personRoleLower.includes("müdür") || personRoleLower.includes("manager") || 
+           personRoleLower.includes("yönetici"))
+        ) {
+          matched = true;
+        }
+      });
+      
+      if (matched) {
+        matchedRoles.push(role);
+      }
+    });
     
     const matchedSkills = queryEmbedding.requirements.skills.filter(skill =>
       personEmbedding.skills.some(personSkill => 
@@ -272,9 +485,27 @@ export class HybridRetrievalServiceImpl implements HybridRetrievalService {
       )
     );
     
+    // Add expertise matches (Uzmanlık)
+    const matchedExpertise = queryEmbedding.requirements.skills.filter(skill =>
+      personEmbedding.expertise.some(expertise => 
+        expertise.toLowerCase().includes(skill.toLowerCase()) ||
+        skill.toLowerCase().includes(expertise.toLowerCase())
+      )
+    );
+    
+    // Add services matches (Hizmetler)
+    const matchedServices = queryEmbedding.requirements.skills.filter(skill =>
+      personEmbedding.skills.some(service => 
+        service.toLowerCase().includes(skill.toLowerCase()) ||
+        skill.toLowerCase().includes(service.toLowerCase())
+      )
+    );
+    
     return {
       matchedRoles,
       matchedSkills,
+      matchedExpertise,
+      matchedServices,
       relationshipDegree: contact.relationship_degree || 5,
       availabilityScore: this.calculateAvailabilityScore(contact),
       locationScore: this.calculateLocationScore(contact, queryEmbedding.requirements)
@@ -322,25 +553,66 @@ export class HybridRetrievalServiceImpl implements HybridRetrievalService {
   }
   
   private calculateAvailabilityScore(contact: Contact): number {
+    // Enhanced availability calculation using comprehensive data
     const text = [
       contact.first_name || "",
       contact.last_name || "",
       contact.profession || "",
+      contact.company || "",
+      contact.work_experience || "",
+      contact.future_goals || "",
+      contact.business_ideas || "",
       contact.description || "",
       ...(contact.services || []),
+      ...(contact.sectors || []),
+      ...(contact.expertise || []),
       ...(contact.tags || [])
     ].join(" ").toLowerCase();
     
-    if (text.includes("müsait") || text.includes("available")) return 0.8;
-    if (text.includes("meşgul") || text.includes("busy")) return 0.3;
+    // Check for availability keywords
+    const availabilityKeywords = {
+      high: ["müsait", "available", "boş", "free", "açık", "open", "hazır", "ready"],
+      low: ["meşgul", "busy", "dolu", "full", "kapalı", "closed", "yoğun", "occupied"]
+    };
+    
+    if (availabilityKeywords.high.some(keyword => text.includes(keyword))) {
+      return 0.8;
+    }
+    
+    if (availabilityKeywords.low.some(keyword => text.includes(keyword))) {
+      return 0.3;
+    }
+    
+    // Check if person is actively looking for opportunities
+    if (contact.future_goals && contact.future_goals.toLowerCase().includes("yeni")) {
+      return 0.7;
+    }
+    
+    if (contact.business_ideas && contact.business_ideas.length > 0) {
+      return 0.6; // Shows entrepreneurial spirit
+    }
+    
     return 0.5; // Default
   }
   
   private calculateLocationScore(contact: Contact, requirements: any): number {
     if (requirements.location === "hybrid") return 1.0;
     if (requirements.location === "remote") return 1.0;
-    if (requirements.location === "local" && contact.city) return 0.8;
-    if (requirements.location === "local" && !contact.city) return 0.2;
+    
+    // Use current_city as primary location
+    const primaryLocation = contact.current_city || contact.city;
+    
+    if (requirements.location === "local" && primaryLocation) {
+      // Check if person has moved recently (shows flexibility)
+      if (contact.turning_points && 
+          (contact.turning_points.toLowerCase().includes("şehir") || 
+           contact.turning_points.toLowerCase().includes("city"))) {
+        return 0.9; // Bonus for flexibility
+      }
+      return 0.8;
+    }
+    
+    if (requirements.location === "local" && !primaryLocation) return 0.2;
     return 0.5;
   }
 }

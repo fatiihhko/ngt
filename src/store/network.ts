@@ -201,6 +201,19 @@ export const useNetworkStore = create<NetworkStore>()(
 // Hotkeys setup
 if (typeof window !== 'undefined') {
   window.addEventListener('keydown', (e) => {
+    // Don't trigger hotkeys if user is typing in an input field
+    const activeElement = document.activeElement;
+    const isTyping = activeElement && (
+      activeElement.tagName === 'INPUT' ||
+      activeElement.tagName === 'TEXTAREA' ||
+      activeElement.contentEditable === 'true' ||
+      activeElement.classList.contains('ProseMirror')
+    );
+    
+    if (isTyping) {
+      return; // Don't interfere with typing
+    }
+    
     const store = useNetworkStore.getState();
     
     // N - Quick Add

@@ -82,6 +82,7 @@ async function generatePersonEmbedding(contact: Contact): Promise<PersonEmbeddin
     contact.profession || "",
     contact.description || "",
     ...(contact.services || []),
+    ...(contact.expertise || []), // Add expertise field
     ...(contact.tags || []),
     contact.city || ""
   ].filter(Boolean).join(" ").toLowerCase();
@@ -102,9 +103,9 @@ async function generatePersonEmbedding(contact: Contact): Promise<PersonEmbeddin
     embedding,
     text,
     skills: contact.services || [],
-    expertise: contact.tags || [],
+    expertise: contact.expertise || [], // Use actual expertise field
     tags: contact.tags || [],
-    languages: [], // Contact type doesn't have languages field
+    languages: contact.languages || [], // Use actual languages field
     locations: contact.city ? [contact.city] : [],
     roles: contact.profession ? [contact.profession] : [],
     domain,

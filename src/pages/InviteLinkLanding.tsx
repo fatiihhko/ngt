@@ -51,15 +51,34 @@ export const InviteLinkLanding = () => {
     }
   };
 
-  const handleContactSubmit = async (contactData: any, sendEmail: boolean = false) => {
+  const handleContactSubmit = async (contactData: any, values: any, sendEmail: boolean = false) => {
     if (!token || !linkInfo) return;
 
     setSubmitting(true);
     try {
+      // Prepare contact data with proper field mapping
+      const contact = {
+        first_name: values.first_name,
+        last_name: values.last_name,
+        city: values.city,
+        profession: values.profession,
+        relationship_degree: values.relationship_degree,
+        services: values.services?.split(",").map((s: string) => s.trim()).filter(Boolean) || [],
+        tags: values.tags?.split(",").map((s: string) => s.trim()).filter(Boolean) || [],
+        phone: values.phone,
+        email: values.email,
+        description: values.description,
+        interests: values.interests,
+      };
+      
+      console.log('InviteLinkLanding Debug - Values:', values);
+      console.log('InviteLinkLanding Debug - Contact:', contact);
+      console.log('InviteLinkLanding Debug - Interests:', values.interests);
+
       const { data, error } = await supabase.functions.invoke("invite-link-submit", {
         body: {
           token,
-          contact: contactData,
+          contact: contact,
           sendEmail,
         },
       });
@@ -204,7 +223,8 @@ export const InviteLinkLanding = () => {
                 </div>
                 <ContactForm 
                   inviteToken={token}
-                  onSuccess={(contact, values, sendEmail) => handleContactSubmit(values, sendEmail)}
+                  isInviteLink={true}
+                  onSuccess={(contact, values, sendEmail) => handleContactSubmit(contact, values, sendEmail)}
                 />
               </div>
             )}

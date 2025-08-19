@@ -65,6 +65,37 @@ BEGIN
     phone,
     email,
     description,
+    age,
+    birth_city,
+    current_city,
+    education_school,
+    education_department,
+    education_degree,
+    education_graduation_year,
+    company,
+    sectors,
+    custom_sector,
+    work_experience,
+    expertise,
+    custom_expertise,
+    custom_service,
+    investments,
+    personal_traits,
+    values,
+    goals,
+    vision,
+    interests,
+    languages,
+    custom_language,
+    is_mentor,
+    volunteer_work,
+    turning_points,
+    challenges,
+    lessons,
+    future_goals,
+    business_ideas,
+    investment_interest,
+    collaboration_areas,
     parent_contact_id
   ) VALUES (
     v_invite.owner_user_id,
@@ -88,6 +119,62 @@ BEGIN
     (p_contact->>'phone')::text,
     (p_contact->>'email')::text,
     (p_contact->>'description')::text,
+    (p_contact->>'age')::integer,
+    (p_contact->>'birth_city')::text,
+    (p_contact->>'current_city')::text,
+    (p_contact->>'education_school')::text,
+    (p_contact->>'education_department')::text,
+    (p_contact->>'education_degree')::text,
+    (p_contact->>'education_graduation_year')::integer,
+    (p_contact->>'company')::text,
+    CASE 
+      WHEN jsonb_typeof(p_contact->'sectors') = 'array' THEN
+        (SELECT array_agg(value::text) FROM jsonb_array_elements_text(p_contact->'sectors'))
+      ELSE 
+        '{}'::text[]
+    END,
+    (p_contact->>'custom_sector')::text,
+    (p_contact->>'work_experience')::text,
+    CASE 
+      WHEN jsonb_typeof(p_contact->'expertise') = 'array' THEN
+        (SELECT array_agg(value::text) FROM jsonb_array_elements_text(p_contact->'expertise'))
+      ELSE 
+        '{}'::text[]
+    END,
+    (p_contact->>'custom_expertise')::text,
+    (p_contact->>'custom_service')::text,
+    (p_contact->>'investments')::text,
+    CASE 
+      WHEN jsonb_typeof(p_contact->'personal_traits') = 'array' THEN
+        (SELECT array_agg(value::text) FROM jsonb_array_elements_text(p_contact->'personal_traits'))
+      ELSE 
+        '{}'::text[]
+    END,
+    CASE 
+      WHEN jsonb_typeof(p_contact->'values') = 'array' THEN
+        (SELECT array_agg(value::text) FROM jsonb_array_elements_text(p_contact->'values'))
+      ELSE 
+        '{}'::text[]
+    END,
+    (p_contact->>'goals')::text,
+    (p_contact->>'vision')::text,
+    (p_contact->>'interests')::text,
+    CASE 
+      WHEN jsonb_typeof(p_contact->'languages') = 'array' THEN
+        (SELECT array_agg(value::text) FROM jsonb_array_elements_text(p_contact->'languages'))
+      ELSE 
+        '{}'::text[]
+    END,
+    (p_contact->>'custom_language')::text,
+    (p_contact->>'is_mentor')::boolean,
+    (p_contact->>'volunteer_work')::text,
+    (p_contact->>'turning_points')::text,
+    (p_contact->>'challenges')::text,
+    (p_contact->>'lessons')::text,
+    (p_contact->>'future_goals')::text,
+    (p_contact->>'business_ideas')::text,
+    (p_contact->>'investment_interest')::boolean,
+    (p_contact->>'collaboration_areas')::text,
     v_invite.inviter_contact_id
   ) RETURNING id INTO v_contact_id;
 

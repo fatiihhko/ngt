@@ -12,7 +12,7 @@ const admin = createClient(supabaseUrl!, serviceRoleKey!);
 
 interface CreateInviteLinkRequest {
   name?: string;
-  limit_count: number;
+  limit_count?: number; // Optional, 0 = unlimited
 }
 
 serve(async (req: Request) => {
@@ -21,7 +21,7 @@ serve(async (req: Request) => {
   }
 
   try {
-    const { name, limit_count }: CreateInviteLinkRequest = await req.json();
+    const { name, limit_count = 0 }: CreateInviteLinkRequest = await req.json();
 
     // Get the authenticated user
     const authHeader = req.headers.get("authorization");
@@ -43,9 +43,9 @@ serve(async (req: Request) => {
       });
     }
 
-    // Validate limit_count
-    if (!Number.isInteger(limit_count) || limit_count < 1) {
-      return new Response(JSON.stringify({ error: "limit_count must be a positive integer" }), {
+    // Validate limit_count (0 = unlimited, otherwise must be positive)
+    if (!Number.isInteger(limit_count) || limit_count < 0) {
+      return new Response(JSON.stringify({ error: "limit_count must be 0 (unlimited) or a positive integer" }), {
         status: 400,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });

@@ -1,76 +1,4 @@
--- Create new invite_links table for the admin-controlled invite system
-CREATE TABLE public.invite_links (
-  id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-  created_by_user_id UUID NOT NULL,
-  name TEXT NOT NULL DEFAULT 'Davet Bağlantısı',
-  limit_count INTEGER NOT NULL DEFAULT 1,
-  used_count INTEGER NOT NULL DEFAULT 0,
-  token TEXT NOT NULL UNIQUE,
-  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'disabled')),
-  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
-);
-
--- Create invite_members table to track who was added via each invite link
-CREATE TABLE public.invite_members (
-  id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-  invite_link_id UUID NOT NULL REFERENCES public.invite_links(id) ON DELETE CASCADE,
-  inviter_user_id UUID NOT NULL,
-  member_email TEXT NOT NULL,
-  contact_id UUID REFERENCES public.contacts(id) ON DELETE SET NULL,
-  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-  
-  -- Prevent duplicate email per invite link
-  UNIQUE(invite_link_id, member_email)
-);
-
--- Enable RLS
-ALTER TABLE public.invite_links ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.invite_members ENABLE ROW LEVEL SECURITY;
-
--- RLS Policies for invite_links
-CREATE POLICY "Users can view their own invite links" 
-ON public.invite_links 
-FOR SELECT 
-USING (auth.uid() = created_by_user_id);
-
-CREATE POLICY "Users can create their own invite links" 
-ON public.invite_links 
-FOR INSERT 
-WITH CHECK (auth.uid() = created_by_user_id);
-
-CREATE POLICY "Users can update their own invite links" 
-ON public.invite_links 
-FOR UPDATE 
-USING (auth.uid() = created_by_user_id);
-
-CREATE POLICY "Users can delete their own invite links" 
-ON public.invite_links 
-FOR DELETE 
-USING (auth.uid() = created_by_user_id);
-
--- RLS Policies for invite_members
-CREATE POLICY "Users can view members of their invite links" 
-ON public.invite_members 
-FOR SELECT 
-USING (EXISTS (
-  SELECT 1 FROM public.invite_links 
-  WHERE invite_links.id = invite_members.invite_link_id 
-  AND invite_links.created_by_user_id = auth.uid()
-));
-
-CREATE POLICY "Authenticated users can insert invite members" 
-ON public.invite_members 
-FOR INSERT 
-WITH CHECK (auth.role() = 'authenticated');
-
--- Add triggers for updated_at
-CREATE TRIGGER update_invite_links_updated_at
-BEFORE UPDATE ON public.invite_links
-FOR EACH ROW
-EXECUTE FUNCTION public.update_updated_at_column();
-
--- Create function to add member via invite link
+-- Debug için add_member_via_invite_link fonksiyonunu güncelle
 CREATE OR REPLACE FUNCTION public.add_member_via_invite_link(
   p_token text,
   p_member_email text,
@@ -87,6 +15,11 @@ DECLARE
   v_contact_id uuid;
   v_remaining integer;
 BEGIN
+  -- Debug: Log the interests value
+  RAISE LOG 'add_member_via_invite_link Debug - p_contact_data: %', p_contact_data;
+  RAISE LOG 'add_member_via_invite_link Debug - interests value: %', p_contact_data->>'interests';
+  RAISE LOG 'add_member_via_invite_link Debug - interests type: %', jsonb_typeof(p_contact_data->'interests');
+  
   -- Lock the invite link row
   SELECT * INTO v_invite_link
   FROM public.invite_links
@@ -114,11 +47,6 @@ BEGIN
     RETURN;
   END IF;
 
-  -- Debug: Log the interests value
-  RAISE LOG 'add_member_via_invite_link Debug - p_contact_data: %', p_contact_data;
-  RAISE LOG 'add_member_via_invite_link Debug - interests value: %', p_contact_data->>'interests';
-  RAISE LOG 'add_member_via_invite_link Debug - interests type: %', jsonb_typeof(p_contact_data->'interests');
-  
   -- Create the contact
   INSERT INTO public.contacts (
     user_id,

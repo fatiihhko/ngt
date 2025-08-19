@@ -1,21 +1,45 @@
 // Environment variable utilities
+const apiKeyCache = new Map<string, string | null>();
+const loggedKeys = new Set<string>();
+
 export const getApiKey = (keyName: string): string | null => {
+  // Check cache first
+  if (apiKeyCache.has(keyName)) {
+    return apiKeyCache.get(keyName);
+  }
+  
   // Check Vite environment variables first
   const viteKey = import.meta.env?.[keyName];
   if (viteKey) {
-    console.log(`✅ Found ${keyName} in import.meta.env`);
+    // Log only once per key
+    if (!loggedKeys.has(keyName)) {
+      console.log(`✅ Found ${keyName} in import.meta.env`);
+      loggedKeys.add(keyName);
+    }
+    apiKeyCache.set(keyName, viteKey);
     return viteKey;
   }
   
   // Check Node.js process.env (for SSR)
   const processKey = process.env?.[keyName];
   if (processKey) {
-    console.log(`✅ Found ${keyName} in process.env`);
+    // Log only once per key
+    if (!loggedKeys.has(keyName)) {
+      console.log(`✅ Found ${keyName} in process.env`);
+      loggedKeys.add(keyName);
+    }
+    apiKeyCache.set(keyName, processKey);
     return processKey;
   }
   
-  console.log(`❌ ${keyName} not found in any environment`);
-  console.log('Available VITE_ env vars:', Object.keys(import.meta.env).filter(key => key.startsWith('VITE_')));
+  // Log error only once per key
+  if (!loggedKeys.has(keyName)) {
+    console.log(`❌ ${keyName} not found in any environment`);
+    console.log('Available VITE_ env vars:', Object.keys(import.meta.env).filter(key => key.startsWith('VITE_')));
+    loggedKeys.add(keyName);
+  }
+  
+  apiKeyCache.set(keyName, null);
   return null;
 };
 

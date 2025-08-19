@@ -27,10 +27,11 @@ export class GeminiEmbeddingService implements EmbeddingService {
       embedding,
       text,
       skills: person.services || [],
-      expertise: person.tags || [],
+      services: person.services || [],
+      expertise: person.expertise || [],
       tags: person.tags || [],
       languages: person.languages || [],
-      locations: person.city ? [person.city] : [],
+      locations: person.current_city ? [person.current_city] : (person.city ? [person.city] : []),
       roles: person.profession ? [person.profession] : [],
       domain: this.extractDomain(person)
     };
@@ -126,12 +127,41 @@ export class GeminiEmbeddingService implements EmbeddingService {
   }
   
   private buildPersonText(person: any): string {
+    // Enhanced person text generation with emphasis on expertise and services
     const parts = [
       person.first_name || "",
       person.last_name || "",
       person.profession || "",
+      person.company || "",
+      person.current_city || "",
+      person.birth_city || "",
+      person.age || "",
+      person.education_school || "",
+      person.education_department || "",
+      person.education_degree || "",
+      person.work_experience || "",
+      person.goals || "",
+      person.vision || "",
+      person.interests || "",
+      person.volunteer_work || "",
+      person.turning_points || "",
+      person.challenges || "",
+      person.lessons || "",
+      person.future_goals || "",
+      person.business_ideas || "",
+      person.collaboration_areas || "",
       person.description || "",
+      // Repeat expertise and services MULTIPLE times for MAXIMUM weight in embeddings
+      ...(person.expertise || []),
+      ...(person.expertise || []), // 2nd time
+      ...(person.expertise || []), // 3rd time for maximum emphasis
       ...(person.services || []),
+      ...(person.services || []), // 2nd time
+      ...(person.services || []), // 3rd time for maximum emphasis
+      ...(person.sectors || []),
+      ...(person.personal_traits || []),
+      ...(person.values || []),
+      ...(person.languages || []),
       ...(person.tags || []),
       person.city || ""
     ];
@@ -156,14 +186,50 @@ export class GeminiEmbeddingService implements EmbeddingService {
   private extractDomain(person: any): string {
     const text = this.buildPersonText(person).toLowerCase();
     
-    if (text.includes("developer") || text.includes("engineer") || text.includes("programmer")) {
+    // Enhanced domain extraction using comprehensive data
+    if (text.includes("developer") || text.includes("engineer") || text.includes("programmer") || 
+        text.includes("yazılım") || text.includes("programlama") || text.includes("tech")) {
       return "teknoloji";
     }
-    if (text.includes("marketing") || text.includes("pazarlama")) {
+    if (text.includes("marketing") || text.includes("pazarlama") || text.includes("reklam") || 
+        text.includes("brand") || text.includes("marka")) {
       return "pazarlama";
     }
-    if (text.includes("finance") || text.includes("finans") || text.includes("accounting")) {
+    if (text.includes("finance") || text.includes("finans") || text.includes("accounting") || 
+        text.includes("muhasebe") || text.includes("investment") || text.includes("yatırım")) {
       return "finans";
+    }
+    if (text.includes("health") || text.includes("medical") || text.includes("healthcare") || 
+        text.includes("sağlık") || text.includes("tıp") || text.includes("hastane")) {
+      return "sağlık";
+    }
+    if (text.includes("education") || text.includes("training") || text.includes("teaching") || 
+        text.includes("eğitim") || text.includes("öğretim") || text.includes("okul")) {
+      return "eğitim";
+    }
+    if (text.includes("real estate") || text.includes("property") || text.includes("construction") || 
+        text.includes("gayrimenkul") || text.includes("emlak") || text.includes("inşaat")) {
+      return "gayrimenkul";
+    }
+    if (text.includes("logistics") || text.includes("transport") || text.includes("shipping") || 
+        text.includes("lojistik") || text.includes("nakliye") || text.includes("tedarik")) {
+      return "lojistik";
+    }
+    if (text.includes("energy") || text.includes("power") || text.includes("renewable") || 
+        text.includes("enerji") || text.includes("elektrik") || text.includes("solar")) {
+      return "enerji";
+    }
+    if (text.includes("environment") || text.includes("sustainability") || text.includes("green") || 
+        text.includes("çevre") || text.includes("sürdürülebilirlik") || text.includes("eco")) {
+      return "çevre";
+    }
+    if (text.includes("legal") || text.includes("law") || text.includes("attorney") || 
+        text.includes("hukuk") || text.includes("avukat") || text.includes("compliance")) {
+      return "hukuk";
+    }
+    if (text.includes("hr") || text.includes("human resources") || text.includes("recruitment") || 
+        text.includes("insan kaynakları") || text.includes("işe alım") || text.includes("talent")) {
+      return "insan kaynakları";
     }
     
     return "genel";
@@ -202,10 +268,11 @@ export class MockEmbeddingService implements EmbeddingService {
       embedding,
       text,
       skills: person.services || [],
-      expertise: person.tags || [],
+      services: person.services || [],
+      expertise: person.expertise || [],
       tags: person.tags || [],
       languages: person.languages || [],
-      locations: person.city ? [person.city] : [],
+      locations: person.current_city ? [person.current_city] : (person.city ? [person.city] : []),
       roles: person.profession ? [person.profession] : [],
       domain: this.extractDomain(person)
     };
@@ -259,12 +326,36 @@ export class MockEmbeddingService implements EmbeddingService {
   }
   
   private buildPersonText(person: any): string {
+    // Enhanced person text generation using comprehensive data
     const parts = [
       person.first_name || "",
       person.last_name || "",
       person.profession || "",
+      person.company || "",
+      person.current_city || "",
+      person.birth_city || "",
+      person.age || "",
+      person.education_school || "",
+      person.education_department || "",
+      person.education_degree || "",
+      person.work_experience || "",
+      person.goals || "",
+      person.vision || "",
+      person.interests || "",
+      person.volunteer_work || "",
+      person.turning_points || "",
+      person.challenges || "",
+      person.lessons || "",
+      person.future_goals || "",
+      person.business_ideas || "",
+      person.collaboration_areas || "",
       person.description || "",
       ...(person.services || []),
+      ...(person.sectors || []),
+      ...(person.expertise || []),
+      ...(person.personal_traits || []),
+      ...(person.values || []),
+      ...(person.languages || []),
       ...(person.tags || []),
       person.city || ""
     ];
