@@ -104,18 +104,24 @@ BEGIN
     (p_contact->>'city')::text,
     (p_contact->>'profession')::text,
     (p_contact->>'relationship_degree')::integer,
-    CASE 
-      WHEN jsonb_typeof(p_contact->'services') = 'array' THEN
-        (SELECT array_agg(value::text) FROM jsonb_array_elements_text(p_contact->'services'))
-      ELSE 
-        '{}'::text[]
-    END,
-    CASE 
-      WHEN jsonb_typeof(p_contact->'tags') = 'array' THEN
-        (SELECT array_agg(value::text) FROM jsonb_array_elements_text(p_contact->'tags'))
-      ELSE 
-        '{}'::text[]
-    END,
+    COALESCE(
+      CASE 
+        WHEN jsonb_typeof(p_contact->'services') = 'array' THEN
+          (SELECT array_agg(value::text) FROM jsonb_array_elements_text(p_contact->'services'))
+        ELSE 
+          '{}'::text[]
+      END,
+      '{}'::text[]
+    ),
+    COALESCE(
+      CASE 
+        WHEN jsonb_typeof(p_contact->'tags') = 'array' THEN
+          (SELECT array_agg(value::text) FROM jsonb_array_elements_text(p_contact->'tags'))
+        ELSE 
+          '{}'::text[]
+      END,
+      '{}'::text[]
+    ),
     (p_contact->>'phone')::text,
     (p_contact->>'email')::text,
     (p_contact->>'description')::text,
@@ -127,44 +133,59 @@ BEGIN
     (p_contact->>'education_degree')::text,
     (p_contact->>'education_graduation_year')::integer,
     (p_contact->>'company')::text,
-    CASE 
-      WHEN jsonb_typeof(p_contact->'sectors') = 'array' THEN
-        (SELECT array_agg(value::text) FROM jsonb_array_elements_text(p_contact->'sectors'))
-      ELSE 
-        '{}'::text[]
-    END,
+    COALESCE(
+      CASE 
+        WHEN jsonb_typeof(p_contact->'sectors') = 'array' THEN
+          (SELECT array_agg(value::text) FROM jsonb_array_elements_text(p_contact->'sectors'))
+        ELSE 
+          '{}'::text[]
+      END,
+      '{}'::text[]
+    ),
     (p_contact->>'custom_sector')::text,
     (p_contact->>'work_experience')::text,
-    CASE 
-      WHEN jsonb_typeof(p_contact->'expertise') = 'array' THEN
-        (SELECT array_agg(value::text) FROM jsonb_array_elements_text(p_contact->'expertise'))
-      ELSE 
-        '{}'::text[]
-    END,
+    COALESCE(
+      CASE 
+        WHEN jsonb_typeof(p_contact->'expertise') = 'array' THEN
+          (SELECT array_agg(value::text) FROM jsonb_array_elements_text(p_contact->'expertise'))
+        ELSE 
+          '{}'::text[]
+      END,
+      '{}'::text[]
+    ),
     (p_contact->>'custom_expertise')::text,
     (p_contact->>'custom_service')::text,
     (p_contact->>'investments')::text,
-    CASE 
-      WHEN jsonb_typeof(p_contact->'personal_traits') = 'array' THEN
-        (SELECT array_agg(value::text) FROM jsonb_array_elements_text(p_contact->'personal_traits'))
-      ELSE 
-        '{}'::text[]
-    END,
-    CASE 
-      WHEN jsonb_typeof(p_contact->'values') = 'array' THEN
-        (SELECT array_agg(value::text) FROM jsonb_array_elements_text(p_contact->'values'))
-      ELSE 
-        '{}'::text[]
-    END,
+    COALESCE(
+      CASE 
+        WHEN jsonb_typeof(p_contact->'personal_traits') = 'array' THEN
+          (SELECT array_agg(value::text) FROM jsonb_array_elements_text(p_contact->'personal_traits'))
+        ELSE 
+          '{}'::text[]
+      END,
+      '{}'::text[]
+    ),
+    COALESCE(
+      CASE 
+        WHEN jsonb_typeof(p_contact->'values') = 'array' THEN
+          (SELECT array_agg(value::text) FROM jsonb_array_elements_text(p_contact->'values'))
+        ELSE 
+          '{}'::text[]
+      END,
+      '{}'::text[]
+    ),
     (p_contact->>'goals')::text,
     (p_contact->>'vision')::text,
     (p_contact->>'interests')::text,
-    CASE 
-      WHEN jsonb_typeof(p_contact->'languages') = 'array' THEN
-        (SELECT array_agg(value::text) FROM jsonb_array_elements_text(p_contact->'languages'))
-      ELSE 
-        '{}'::text[]
-    END,
+    COALESCE(
+      CASE 
+        WHEN jsonb_typeof(p_contact->'languages') = 'array' THEN
+          (SELECT array_agg(value::text) FROM jsonb_array_elements_text(p_contact->'languages'))
+        ELSE 
+          '{}'::text[]
+      END,
+      '{}'::text[]
+    ),
     (p_contact->>'custom_language')::text,
     (p_contact->>'is_mentor')::boolean,
     (p_contact->>'volunteer_work')::text,

@@ -24,7 +24,6 @@ interface SubmitRequest {
     phone?: string;
     email?: string;
     description?: string;
-    interests?: string;
   };
 }
 
@@ -36,10 +35,26 @@ serve(async (req: Request) => {
   try {
     const body: SubmitRequest = await req.json();
     const { token, contact, sendEmail = false } = body;
-    
-    console.log('invite-link-submit Debug - Body:', body);
-    console.log('invite-link-submit Debug - Contact:', contact);
-    console.log('invite-link-submit Debug - Interests:', contact.interests);
+
+    // Get the authenticated user
+    const authHeader = req.headers.get("authorization");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Authentication required" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
+    const { data: userData, error: userError } = await admin.auth.getUser(
+      authHeader.replace("Bearer ", "")
+    );
+
+    if (userError || !userData.user) {
+      return new Response(JSON.stringify({ error: "Invalid authentication" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
 
     // Validate required fields
     if (!token) {
@@ -57,18 +72,18 @@ serve(async (req: Request) => {
     }
 
     if (!contact?.email) {
-      return new Response(JSON.stringify({ error: "Email required for tracking" }), {
+      return new Response(JSON.stringify({ error: "Email required for chain tracking" }), {
         status: 422,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     }
 
-    // Call the database function to add member (no authentication required for public invite links)
+    // Call the database function to add member
     const { data, error } = await admin.rpc("add_member_via_invite_link", {
       p_token: token,
+      p_inviter_user_id: userData.user.id,
       p_member_email: contact.email,
       p_contact_data: contact,
-      p_inviter_user_id: null, // No specific inviter for public invite links
     });
 
     if (error) {

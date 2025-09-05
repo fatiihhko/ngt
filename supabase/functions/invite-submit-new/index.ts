@@ -26,39 +26,6 @@ interface SubmitBody {
     phone?: string | null;
     email?: string | null;
     description?: string | null;
-    // New comprehensive fields
-    age?: string | null;
-    birth_city?: string | null;
-    current_city?: string | null;
-    education_school?: string | null;
-    education_department?: string | null;
-    education_degree?: string | null;
-    education_graduation_year?: string | null;
-    company?: string | null;
-    sectors?: string[] | null;
-    custom_sector?: string | null;
-    work_experience?: string | null;
-    expertise?: string[] | null;
-    custom_expertise?: string | null;
-    custom_service?: string | null;
-    investments?: string | null;
-    personal_traits?: string[] | null;
-    values?: string[] | null;
-    goals?: string | null;
-    vision?: string | null;
-    interests?: string | null;
-    languages?: string[] | null;
-    custom_language?: string | null;
-    is_mentor?: boolean | null;
-    volunteer_work?: string | null;
-    turning_points?: string | null;
-    challenges?: string | null;
-    lessons?: string | null;
-    future_goals?: string | null;
-    business_ideas?: string | null;
-    investment_interest?: boolean | null;
-    collaboration_areas?: string | null;
-    parent_contact_id?: string | null;
   };
 }
 
@@ -107,26 +74,21 @@ serve(async (req: Request) => {
     }
 
     const { token, contact, sendEmail: shouldSendEmailFlag, base_url } = body;
-    
-
 
     // Zorunlu alanlar
     if (!token) {
-      console.log('invite-submit-new Error - Missing token');
       return new Response(JSON.stringify({ error: "token gerekli" }), {
         status: 422,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     }
     if (!contact?.first_name || !contact?.last_name) {
-      console.log('invite-submit-new Error - Missing first_name or last_name:', { first_name: contact?.first_name, last_name: contact?.last_name });
       return new Response(JSON.stringify({ error: "ad/soyad gerekli" }), {
         status: 422,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     }
     if (typeof contact.relationship_degree !== "number") {
-      console.log('invite-submit-new Error - Invalid relationship_degree:', { relationship_degree: contact.relationship_degree, type: typeof contact.relationship_degree });
       return new Response(JSON.stringify({ error: "relationship_degree sayısal olmalı" }), {
         status: 422,
         headers: { "Content-Type": "application/json", ...corsHeaders },
@@ -144,11 +106,6 @@ serve(async (req: Request) => {
 
     const services = toArray(contact.services);
     const tags = toArray(contact.tags);
-    const sectors = toArray(contact.sectors);
-    const expertise = toArray(contact.expertise);
-    const personal_traits = toArray(contact.personal_traits);
-    const values = toArray(contact.values);
-    const languages = toArray(contact.languages);
 
     // RPC çağrısı
     console.log("Calling accept_invite_and_add_contact with:", {
@@ -164,49 +121,12 @@ serve(async (req: Request) => {
         phone: contact.phone ?? null,
         email: contact.email ?? null,
         description: contact.description ?? null,
-        // New comprehensive fields
-        age: contact.age ?? null,
-        birth_city: contact.birth_city ?? null,
-        current_city: contact.current_city ?? null,
-        education_school: contact.education_school ?? null,
-        education_department: contact.education_department ?? null,
-        education_degree: contact.education_degree ?? null,
-        education_graduation_year: contact.education_graduation_year ?? null,
-        company: contact.company ?? null,
-        sectors,
-        custom_sector: contact.custom_sector ?? null,
-        work_experience: contact.work_experience ?? null,
-        expertise,
-        custom_expertise: contact.custom_expertise ?? null,
-        custom_service: contact.custom_service ?? null,
-        investments: contact.investments ?? null,
-        personal_traits,
-        values,
-        goals: contact.goals ?? null,
-        vision: contact.vision ?? null,
-        interests: contact.interests ?? null,
-        languages,
-        custom_language: contact.custom_language ?? null,
-        is_mentor: contact.is_mentor ?? null,
-        volunteer_work: contact.volunteer_work ?? null,
-        turning_points: contact.turning_points ?? null,
-        challenges: contact.challenges ?? null,
-        lessons: contact.lessons ?? null,
-        future_goals: contact.future_goals ?? null,
-        business_ideas: contact.business_ideas ?? null,
-        investment_interest: contact.investment_interest ?? null,
-        collaboration_areas: contact.collaboration_areas ?? null,
-        parent_contact_id: contact.parent_contact_id ?? null,
       },
     });
 
-
-
-    let rpcData, rpcError;
-    try {
-      const rpcResult = await admin.rpc("accept_invite_and_add_contact", {
-        p_token: token,
-        p_contact: {
+    const { data: rpcData, error: rpcError } = await admin.rpc("accept_invite_and_add_contact", {
+      p_token: token,
+      p_contact: {
         first_name: contact.first_name,
         last_name: contact.last_name,
         city: contact.city ?? null,
@@ -217,47 +137,8 @@ serve(async (req: Request) => {
         phone: contact.phone ?? null,
         email: contact.email ?? null,
         description: contact.description ?? null,
-        // New comprehensive fields
-        age: contact.age ?? null,
-        birth_city: contact.birth_city ?? null,
-        current_city: contact.current_city ?? null,
-        education_school: contact.education_school ?? null,
-        education_department: contact.education_department ?? null,
-        education_degree: contact.education_degree ?? null,
-        education_graduation_year: contact.education_graduation_year ?? null,
-        company: contact.company ?? null,
-        sectors,
-        custom_sector: contact.custom_sector ?? null,
-        work_experience: contact.work_experience ?? null,
-        expertise,
-        custom_expertise: contact.custom_expertise ?? null,
-        custom_service: contact.custom_service ?? null,
-        investments: contact.investments ?? null,
-        personal_traits,
-        values,
-        goals: contact.goals ?? null,
-        vision: contact.vision ?? null,
-        interests: contact.interests ?? null,
-        languages,
-        custom_language: contact.custom_language ?? null,
-        is_mentor: contact.is_mentor ?? null,
-        volunteer_work: contact.volunteer_work ?? null,
-        turning_points: contact.turning_points ?? null,
-        challenges: contact.challenges ?? null,
-        lessons: contact.lessons ?? null,
-        future_goals: contact.future_goals ?? null,
-        business_ideas: contact.business_ideas ?? null,
-        investment_interest: contact.investment_interest ?? null,
-        collaboration_areas: contact.collaboration_areas ?? null,
-        parent_contact_id: contact.parent_contact_id ?? null,
       },
-      });
-      rpcData = rpcResult.data;
-      rpcError = rpcResult.error;
-    } catch (error) {
-      console.error("RPC call failed:", error);
-      rpcError = { message: error.message || "RPC call failed" };
-    }
+    });
 
     console.log("RPC result:", { rpcData, rpcError });
 
@@ -273,8 +154,8 @@ serve(async (req: Request) => {
       });
     }
 
-    // RPC fonksiyonu jsonb döndürür
-    const result = rpcData;
+    // Fonksiyon TABLE döndürür - ilk satırı al
+    const result = Array.isArray(rpcData) && rpcData.length > 0 ? rpcData[0] : null;
     if (!result || !result.contact_id) {
       console.error("Unexpected RPC result structure:", rpcData);
       return new Response(JSON.stringify({ error: "Beklenmeyen dönüş yapısı" }), {

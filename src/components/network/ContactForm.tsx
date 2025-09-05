@@ -26,19 +26,16 @@ const schema = z.object({
   phone: z.string().optional(),
   email: z.string().email("Geçersiz e-posta").optional().or(z.literal("")),
   description: z.string().optional(),
-
 });
 
 const ContactForm = memo(({
   parentContactId,
   onSuccess,
   inviteToken,
-  isInviteLink = false,
 }: {
   parentContactId?: string;
   onSuccess?: (contact: any, values: z.infer<typeof schema>, sendEmail?: boolean) => void;
   inviteToken?: string;
-  isInviteLink?: boolean;
 }) => {
 const form = useForm<z.infer<typeof schema>>({
   resolver: zodResolver(schema),
@@ -57,42 +54,8 @@ const onSubmit = async (values: z.infer<typeof schema>) => {
   // If inviteToken exists, submit via Edge Function (no auth required)
   if (inviteToken) {
     try {
-      // Use the isInviteLink prop to determine endpoint
-      const shouldUseInviteLinkEndpoint = isInviteLink || window.location.pathname.includes('/invite-link/');
-      
-              console.log('ContactForm Debug:', {
-          pathname: window.location.pathname,
-          isInviteLink,
-          shouldUseInviteLinkEndpoint,
-          inviteToken,
-          contactData: {
-            first_name: values.first_name,
-            last_name: values.last_name,
-            city: values.city,
-            profession: values.profession,
-            relationship_degree: values.relationship_degree,
-            services: servicesArr,
-            tags: tagsArr,
-            phone: values.phone,
-            email: values.email || null,
-            description: values.description,
-            interests: values.interests,
-            parent_contact_id: parentContactId ?? null,
-          }
-        });
-        
-        console.log('Interests value:', values.interests);
-        console.log('Interests type:', typeof values.interests);
-        console.log('Interests length:', values.interests?.length);
-        
-        // Use different endpoints based on the type
-        const endpoint = shouldUseInviteLinkEndpoint 
-          ? 'https://ysqnnassgbihnrjkcekb.supabase.co/functions/v1/invite-link-submit'
-          : 'https://ysqnnassgbihnrjkcekb.supabase.co/functions/v1/invite-submit-new';
-        
-        console.log('Using endpoint:', endpoint);
-      
-      const response = await fetch(endpoint, {
+      // First, submit the contact
+      const response = await fetch(`https://ysqnnassgbihnrjkcekb.supabase.co/functions/v1/invite-submit-new`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -114,24 +77,18 @@ const onSubmit = async (values: z.infer<typeof schema>) => {
             phone: values.phone,
             email: values.email || null,
             description: values.description,
-            interests: values.interests,
             parent_contact_id: parentContactId ?? null,
           },
         })
       });
 
-      console.log('Response status:', response.status);
-      console.log('Response ok:', response.ok);
-      
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Bilinmeyen hata' }));
-        console.log('Error response:', errorData);
         toast({ title: "Kaydedilemedi", description: errorData.error || `HTTP ${response.status}`, variant: "destructive" });
         return;
       }
 
       const data = await response.json();
-      console.log('Success response:', data);
 
       // Optional notification email via EmailJS
       if (sendEmail && values.email) {
@@ -192,7 +149,6 @@ const onSubmit = async (values: z.infer<typeof schema>) => {
       phone: "",
       email: "",
       description: "",
-      interests: "",
     });
     setSendEmail(false);
     return;
@@ -451,10 +407,8 @@ const onSubmit = async (values: z.infer<typeof schema>) => {
           </div>
         </Card>
 
-
-
         {/* Description Card */}
-        <Card className="modern-card p-6 space-y-4 slide-in" style={{animationDelay: '0.5s'}}>
+        <Card className="modern-card p-6 space-y-4 slide-in" style={{animationDelay: '0.4s'}}>
           <div className="flex items-center gap-2 mb-4">
             <FileText className="h-5 w-5 text-white" />
             <h3 className="font-semibold">Açıklama</h3>

@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { UserPlus, Mail, User, CheckCircle, Clock, AlertCircle, Sparkles, Crown, Users } from "lucide-react";
+import { UserPlus, Mail, User, CheckCircle, Clock, AlertCircle, Sparkles, Users } from "lucide-react";
 import { useNetworkStore } from "@/store/network";
 
 interface InviteLookupResponse {
@@ -39,8 +39,9 @@ const setSEO = (title: string, description: string, canonical?: string) => {
   }
 };
 
-const InviteLanding = () => {
-  const { token } = useParams();
+export const InviteLanding = ({ inviteToken }: { inviteToken?: string } = {}) => {
+  const paramsToken = useParams().token;
+  const token = inviteToken || paramsToken;
   const [lookup, setLookup] = useState<InviteLookupResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [inviter, setInviter] = useState({ first_name: "", last_name: "", email: "" });
@@ -374,15 +375,26 @@ const load = async () => {
                   isInviteLink={false}
                   onSuccess={async (newPerson) => {
                     console.log('InviteLanding: onSuccess called with newPerson:', newPerson);
-                    // Refresh the network data to get the complete person information
-                    const { loadNetwork } = useNetworkStore.getState();
-                    console.log('InviteLanding: Calling loadNetwork()');
-                    await loadNetwork();
-                    console.log('InviteLanding: loadNetwork() completed');
-                    toast({ 
-                      title: "Başarılı!", 
-                      description: "Ağa başarıyla katıldınız. Hoş geldiniz!" 
-                    });
+                    console.log('InviteLanding: newPerson type:', typeof newPerson);
+                    console.log('InviteLanding: newPerson keys:', Object.keys(newPerson || {}));
+                    
+                    try {
+                      // Refresh the network data to get the complete person information
+                      const { loadNetwork } = useNetworkStore.getState();
+                      console.log('InviteLanding: Calling loadNetwork()');
+                      await loadNetwork();
+                      console.log('InviteLanding: loadNetwork() completed');
+                      toast({ 
+                        title: "Başarılı!", 
+                        description: "Ağa başarıyla katıldınız. Hoş geldiniz!" 
+                      });
+                    } catch (error) {
+                      console.error('InviteLanding: Error in loadNetwork:', error);
+                      toast({ 
+                        title: "Başarılı!", 
+                        description: "Ağa başarıyla katıldınız. Hoş geldiniz!" 
+                      });
+                    }
                   }}
                 />
               </div>
@@ -390,40 +402,7 @@ const load = async () => {
           </Card>
                  )}
 
-         {/* Information Cards */}
-         {!loading && lookup && !exhausted && (
-           <div className="grid md:grid-cols-3 gap-6 mt-8">
-             <Card className="interactive-card p-6 text-center">
-               <div className="space-y-4">
-                 <Crown className="h-10 w-10 mx-auto" style={{color: "hsl(var(--mythology-gold))"}} />
-                 <div>
-                   <h3 className="font-bold text-lg">Güvenli</h3>
-                   <p className="text-sm text-muted-foreground">Verileriniz Zeus'un koruması altında</p>
-                 </div>
-               </div>
-             </Card>
 
-             <Card className="interactive-card p-6 text-center">
-               <div className="space-y-4">
-                 <Sparkles className="h-10 w-10 mx-auto text-primary" />
-                 <div>
-                   <h3 className="font-bold text-lg">Akıllı</h3>
-                   <p className="text-sm text-muted-foreground">Athena'nın bilgeliği ile ağ analizi</p>
-                 </div>
-               </div>
-             </Card>
-
-             <Card className="interactive-card p-6 text-center">
-               <div className="space-y-4">
-                 <Users className="h-10 w-10 mx-auto text-primary" />
-                 <div>
-                   <h3 className="font-bold text-lg">Bağlantılı</h3>
-                   <p className="text-sm text-muted-foreground">Apollo'nun müziği gibi uyumlu ağ</p>
-                 </div>
-               </div>
-             </Card>
-           </div>
-         )}
        </div>
      </main>
    );
